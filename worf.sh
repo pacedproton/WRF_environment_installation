@@ -573,7 +573,7 @@ generate_peroration () {
 
     printf 'echo \"[modules] loading modules\"\n' >> ${WRF_ENVIRONMENT}
 
-    for i_module in "${!environment_version[@]}"; d
+    for i_module in "${!environment_version[@]}"; do
         printf "module load %s\n" "${environment_version[$i_module]}" >> ${WRF_ENVIRONMENT}
     done
 
@@ -605,13 +605,14 @@ wrf () {
         printf "export WRF_CHEM=1\n" >> ${WRF_ENVIRONMENT}
         printf "export WRF_EM_CORE=1\n" >> ${WRF_ENVIRONMENT}
         printf "export WRF_NMM_CORE=0\n" >> ${WRF_ENVIRONMENT}
+    fi
 
     if [[ ${WRF_KPP} == 1 ]]; then
         printf "export WRF_KPP=1\n" >> ${WRF_ENVIRONMENT}
     fi
 
     WRF_DIR=$WRF   
-    export WRF=${PREFIX}/${CATEGORY}/${this_package}
+    export WRF=${PREFIX}/${PACKAGES}/${this_package}
 
     printf "export WRF_DIR=%s\n" "$WRF" >> ${WRF_ENVIRONMENT}
     printf "export WRFIO_NCD_LARGE_FILE_SUPPORT=%s\n" "$WRFIO_NCD_LARGE_FILE_SUPPORT" >> ${WRF_ENVIRONMENT}
@@ -638,7 +639,8 @@ wrf () {
         DM_CC=mpiicc
     
     compile model with e.g. ./compile -j $processes <model name>
-    
+        for WRF-chem: additionally issue ./compile emi_conv
+
     issue clean before making changes to recompile or clean -a which also overwrites configure.wrf
 
     ################################################################################################
