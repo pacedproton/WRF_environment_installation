@@ -17,7 +17,7 @@ scriptdoc
 ### begin required parameters ###
 
 initialize() {
-    export PREFIX=/gpfs/data/fs71391/malexand/3.3-chem          # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
+    export PREFIX=/gpfs/data/fs71391/malexand/3.4-chem          # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
     export CATEGORY='opt'
     export PACKAGES='packages'
 
@@ -72,13 +72,16 @@ initialize() {
     src_packages_version[flex]='refs/tags/v2.6.4'
     src_packages_version[yacc]='refs/tags/v1.9'
 
-    ( [[ -f ${WRF_ENVIRONMENT} ]] && [[ $1 != 'wps' ]] ) && truncate -s 0 ${WRF_ENVIRONMENT}    
+
+    if [[ -f ${WRF_ENVIRONMENT} && wps != 'wps' ]]; then
+        truncate -s 0 "${WRF_ENVIRONMENT}"
+    fi
 
     mkdir -p ${PREFIX}/{${CATEGORY},${PACKAGES},common/${PACKAGES},tmp}
 
     processes=$(($(nproc) - $(cat /proc/loadavg | awk '{print int($1)}')))
 
-    check_intelgnu
+    [[ $wps != 'wps' ]] && check_intelgnu
 }
 
 buildclean () {
@@ -181,7 +184,7 @@ check_intelgnu() {
         : # add GCC/OpenMPI
     fi
 
-    if [[ "$1" != wps ]]; then
+    if [[ $wps != 'wps' ]]; then
 	export LD_LIBRARY_PATH_INITIAL=$LD_LIBRARY_PATH
     fi
 
@@ -670,11 +673,7 @@ wps () {
     cd ${PREFIX}/${PACKAGES}
 
     git_lazy_clone $this_package
-
-    # git checkout master
-    # git checkout ${src_packages_version[$this_package]}
-
-
+   
     cat <<EOF
 
     ################################################################################################
@@ -723,7 +722,8 @@ main () {
     wrf
 }
 
-if [[ "$1" == wps ]]; then
+if [[ "$1" == 'wps' ]]; then
+    export wps='wps'
     initialize
     wps
     exit $?
