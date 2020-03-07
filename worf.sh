@@ -17,9 +17,9 @@ scriptdoc
 ### begin required parameters ###
 
 initialize() {
-    export PREFIX=/gpfs/data/fs71391/malexand/3.4-chem          # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
+    export PREFIX=/gpfs/data/fs71391/malexand/342c          # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
     export CATEGORY='opt'
-    export PACKAGES='packages'
+    export PACKAGES='pkg'
 
     declare -Ag environment_version             # tested versions, adapt to your environment
     environment_version[intel]='intel/19.1.0'   
@@ -34,9 +34,16 @@ initialize() {
 
     WRF_ENVIRONMENT=${PREFIX}/${PACKAGES}/wrf_environment.sh  # location for generated wrf environment file
     WRF_CHEM=1
-    WRF_KPP=0
+    WRF_KPP=1
     WRFIO_NCD_LARGE_FILE_SUPPORT=1
-    
+
+    # todo kpp     
+    export KPP_HOME=/gpfs/data/fs71391/malexand/342c/pkg/wrf/chem/KPP/kpp/kpp-2.1/
+    # add path /gpfs/data/fs71391/malexand/342c/pkg/wrf/chem/KPP/kpp/kpp-2.1/bin
+    # configure_kpp script broken ./chem/KPP/configure_kpp
+
+    export OPTI=O0
+
     ### end required parameters ###
 
 
@@ -203,7 +210,7 @@ zlib () {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-O3 -xHost -ip'
+    export CFLAGS='-${OPTI} -xHost -ip'
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -227,7 +234,7 @@ curl () {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-O3 -xHost -ip'
+    export CFLAGS='-${OPTI} -xHost -ip'
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -252,9 +259,9 @@ hdf5 () {
     export CC=mpiicc
     export CXX=mpiicpc
     export FC=mpiifort
-    export CFLAGS='-O3 -xHost -ip'
-    export CXXFLAGS='-O3 -xHost -ip'
-    export FCFLAGS='-O3 -xHost -ip'
+    export CFLAGS='-${OPTI} -xHost -ip'
+    export CXXFLAGS='-${OPTI} -xHost -ip'
+    export FCFLAGS='-${OPTI} -xHost -ip'
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -377,12 +384,12 @@ pnetcdf () {
     export MPICXX=mpiicpc
     export MPIF90=mpiifort
     export MPIF77=mpiifort
-    export CFLAGS='-O3 -xHost -ip -no-prec-div -shared-intel'
-    export CXXFLAGS='-O3 -xHost -ip -no-prec-div -shared-intel'
+    export CFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel'
+    export CXXFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel'
     export F77=ifort
     export FC=ifort
     export F90=iifort
-    export FFLAGS='-O3 -xHost -ip -no-prec-div -shared-intel'
+    export FFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel'
     export CPP='icc -E'
     export CXXCPP='icpc -E'
     export CPPFLAGS="-I${HDF5}/include -I${ZLIB}/include"
@@ -422,8 +429,8 @@ libpng () {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-O3 -xHost -ip'
-    export CXXFLAGS='-O3 -xHost -ip -no-prec-div -shared-intel -fPIC'
+    export CFLAGS='-${OPTI} -xHost -ip'
+    export CXXFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel -fPIC'
     export CPPFLAGS="-I${ZLIB}/include"
     export ZLIBLIB=${ZLIB}/lib
     export ZLIBINC=${ZLIB}/include
@@ -501,7 +508,6 @@ netcdf_cf() {
     cp -pv ${PREFIX}/${CATEGORY}/netcdf_?/bin/n?-config ${PREFIX}/${CATEGORY}/${this_package}/bin
 
     export NETCDF_CF=${PREFIX}/${CATEGORY}/${this_package}
-    printf "export PATH=$PATH:%s\n" "$NETCDF_CF/bin" >> ${WRF_ENVIRONMENT}
     printf "export NETCDF_CF=%s\n" "$NETCDF_CF" >> ${WRF_ENVIRONMENT}
     printf "export NETCDF=%s\n" "$NETCDF_CF" >> ${WRF_ENVIRONMENT}
 }
@@ -518,7 +524,7 @@ flex() {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-O3 -xHost -ip -static-intel'
+    export CFLAGS='-${OPTI} -xHost -ip -static-intel'
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -534,9 +540,7 @@ flex() {
 
     export FLEX=${PREFIX}/${CATEGORY}/${this_package}
     export FLEX_LIB_DIR=${PREFIX}/${CATEGORY}/${this_package}/lib
-    export PATH=${PATH}:${FLEX}/bin
-    printf "export PATH=%s:${PATH}\n" "${FLEX}/bin" >> ${WRF_ENVIRONMENT}
-    printf "export FLEX=%s\n" "$FLEX" >> ${WRF_ENVIRONMENT}
+    printf "export FLEX=%s/bin/flex\n" "$FLEX" >> ${WRF_ENVIRONMENT}
     printf "export FLEX_LIB_DIR=%s\n" "$FLEX_LIB_DIR" >> ${WRF_ENVIRONMENT}
 }
 
@@ -546,7 +550,7 @@ yacc() {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-O3 -xHost -ip -static-intel'
+    export CFLAGS='-${OPTI} -xHost -ip -static-intel'
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -560,17 +564,18 @@ yacc() {
     make install
 
     export YACC="${PREFIX}/${CATEGORY}/${this_package}"
-    printf "export \"YACC=%s %s\"\n" "$YACC" '-d' >> ${WRF_ENVIRONMENT}
-    printf "export PATH=%s:${PATH}\n" "${YACC}/bin" >> ${WRF_ENVIRONMENT}
+    printf "export \"YACC=%s/bin/yacc %s\"\n" "$YACC" '-d' >> ${WRF_ENVIRONMENT}
 }
 
 
 persist_ld_library_path () {
-    export LD_LIBRARY_PATH="$LD_LIBRARY_PATH_INITIAL:${HDF5}/lib:${ZLIB}/lib:${NETCDF_CF}/lib:${CURL}/lib:${PNETCDF}/lib:${LIBPNG}/lib:${NETCDF_C}/lib:${NETCDF_F}/lib:${JASPER}/lib"
+    export LD_LIBRARY_PATH="$LD_LIBRARY_PATH_INITIAL:${HDF5}/lib:${ZLIB}/lib:${NETCDF_CF}/lib:${CURL}/lib:${PNETCDF}/lib:${LIBPNG}/lib:${NETCDF_C}/lib:${NETCDF_F}/lib:${JASPER}/lib64:${FLEX}:/lib"
     printf "export LD_LIBRARY_PATH=%s\n" "$LD_LIBRARY_PATH" >> ${WRF_ENVIRONMENT}
 }
 
 generate_peroration () {
+    printf "export PATH=%s:%s:%s:${PATH}\n" "${FLEX}/bin" "${YACC}/bin" "$NETCDF_CF/bin" >> ${WRF_ENVIRONMENT} 
+   
     printf "echo \"[info] Build date $(date)\"\n" >> ${WRF_ENVIRONMENT} 
     printf "echo \"[info] Compiler: %s, MPI: %s\"\n" ${environment_version[intel]} ${environment_version[intel-mpi]} >> ${WRF_ENVIRONMENT}
 
@@ -591,9 +596,9 @@ wrf () {
     export F77=mpiifort
     export CXX=mpiicpc
     export CC=mpiicc
-    export FFLAGS='-O3 -xHost -ip -no-prec-div -fp-model precise'
-    export CFLAGS='-O3 -xHost -ip -no-prec-div'
-    export CPPFLAGS='-O3 -xHost -ip -no-prec-div'
+    export FFLAGS='-${OPTI} -xHost -ip -no-prec-div -fp-model precise'
+    export CFLAGS='-${OPTI} -xHost -ip -no-prec-div'
+    export CPPFLAGS='-${OPTI} -xHost -ip -no-prec-div'
     export CXXFLAGS='-fp-model precise'
 
     export J="-j ${processes}"
