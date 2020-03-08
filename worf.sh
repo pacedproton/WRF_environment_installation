@@ -1,18 +1,13 @@
 #!/bin/bash
 
 <<scriptdoc
-This WRF environment installation script facilitates the building the dependencies of WRF/WPS.
+This WRF environment installation script facilitates the building the dependencies of WRF/WRF-Chem/WPS.
  
 All the necessary parameterization is to fill out the block marked for
-required parameters. 
+required parameters and adapt the respective module environment_version names/versions. 
 
-Environment: RHEL/CentOS Linux (tested 7.6)
+Environment main elements: RHEL/CentOS Linux (tested 7.6)
 Intel Parellel Studio (tested 19.1.0) 
-cmake (tested 3.15.1)
-perl (tested 5.26.2)
-
-The Intel compilers, Intel MPI, cmake and perl need to be loadable
-through the module facility. 
 
 See the README file for step-by-step instructions. 
 
@@ -22,24 +17,32 @@ scriptdoc
 ### begin required parameters ###
 
 initialize() {
-    export PREFIX=${HOME}/tmp                   # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
+    export PREFIX=/gpfs/data/home/username/mywrf          # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
     export CATEGORY='opt'
-    export PACKAGES='packages'
+    export PACKAGES='pkg'
 
     declare -Ag environment_version             # tested versions, adapt to your environment
     environment_version[intel]='intel/19.1.0'   
     environment_version[intel-mpi]='intel-mpi/2019.6'
     environment_version[cmake]='cmake/3.15.1-intel-19.0.5.281-zbb4n77'
     environment_version[perl5]='perl/5.26.2-gcc-9.1.0-npgo6f5'
+    environment_version[gettext]='gettext/0.19.8.1-intel-19.0.5.281-47ar2rz'
+    environment_version[automake]='automake/1.16.1-intel-19.0.5.281-sclxqoe'
+    environment_version[libiconv]='libiconv/1.15-intel-19.0.5.281-a24zavx'
+    environment_version[texinfo]='texinfo/6.5-gcc-9.1.0-jbo5m2y'
+    environment_version[help2man]='help2man/1.47.8-intel-19.0.5.281-k3tb6t4'
 
-    WRF_ENVIRONMENT=${PREFIX}/${PACKAGES}/wrf_environment.sh  # location for generated file
-    WRF_CHEM=1
+    WRF_ENVIRONMENT=${PREFIX}/${PACKAGES}/wrf_environment.sh  # location for generated wrf environment file
+    WRF_CHEM=0
+    WRF_KPP=0
     WRFIO_NCD_LARGE_FILE_SUPPORT=1
-    
+
+    export OPTI=O0
+
     ### end required parameters ###
 
 
-    export check='check'                        # possible values: 'check', empty string '' 
+    export check=''                             # possible values: 'check', empty string '' 
     export intelgnu='intel'                     # presently: 'intel' only
     export clean='clean'                        # 'clean', ''
 
@@ -55,6 +58,8 @@ initialize() {
     src_packages[jasper]='https://github.com/mdadams/jasper.git'
     src_packages[wrf]='https://github.com/wrf-model/WRF.git'
     src_packages[wps]='https://github.com/wrf-model/WPS.git'
+    src_packages[flex]='https://github.com/westes/flex.git'
+    src_packages[yacc]='https://github.com/pacedproton/yacc.git'
 
     declare -Ag src_packages_version
     src_packages_version[zlib]='refs/tags/v1.2.11'
@@ -66,15 +71,21 @@ initialize() {
     src_packages_version[netcdf_c]='refs/tags/v4.7.3'
     src_packages_version[netcdf_f]='refs/tags/v4.5.2'
     src_packages_version[pnetcdf]='refs/tags/checkpoint.1.12.1'
+    src_packages_version[flex]='refs/tags/v2.6.4'
+    src_packages_version[yacc]='refs/tags/v1.9'
 
-    ( [[ -f ${WRF_ENVIRONMENT} ]] && [[ $1 != 'wps' ]] ) && truncate -s 0 ${WRF_ENVIRONMENT}    
+
+    if [[ -f ${WRF_ENVIRONMENT} && wps != 'wps' ]]; then
+        truncate -s 0 "${WRF_ENVIRONMENT}"
+    fi
 
     mkdir -p ${PREFIX}/{${CATEGORY},${PACKAGES},common/${PACKAGES},tmp}
 
     processes=$(($(nproc) - $(cat /proc/loadavg | awk '{print int($1)}')))
 
-    check_intelgnu
+    [[ $wps != 'wps' ]] && check_intelgnu
 }
+
 
 buildclean () {
     unset src_packages
@@ -133,6 +144,7 @@ buildclean () {
     fi
 }
 
+
 git_lazy_clone() {
     local this_package=$1
 
@@ -164,19 +176,20 @@ git_lazy_clone() {
     fi
 }
 
+
 check_intelgnu() {
     if [[ ${intelgnu} == 'intel' ]]; then
-        module load ${environment_version[intel]}
-        module load ${environment_version[intel-mpi]}
-        module load ${environment_version[cmake]}
-        module load ${environment_version[perl5]}
+        for i_module in "${!environment_version[@]}"; do
+            echo ${environment_version[$i_module]}
+            module load ${environment_version[$i_module]}
+        done
 
         MPI=$(module path ${environment_version[intel-mpi]})
     else
         : # add GCC/OpenMPI
     fi
 
-    if [[ "$1" != wps ]]; then
+    if [[ $wps != 'wps' ]]; then
 	export LD_LIBRARY_PATH_INITIAL=$LD_LIBRARY_PATH
     fi
 
@@ -187,19 +200,20 @@ check_intelgnu() {
 
 
 line_printer() {
-    echo -e "\n\n\n ***** $1 *****"
+    echo -e "\n\n\n[info] building $1"
 }
+
 
 zlib () {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-O3 -xHost -ip'
+    export CFLAGS='-${OPTI} -xHost -ip'
 
     cd ${PREFIX}/${PACKAGES}
 
-    git_lazy_clone $this_package ${src_packages[$this_package]} ${src_packages_version[$this_package]}
+    git_lazy_clone $this_package ${src_packages[$this_package]} 
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
@@ -214,12 +228,13 @@ zlib () {
     printf "export ZLIB=%s\n" "$ZLIB" >> ${WRF_ENVIRONMENT}
 }
 
+
 curl () {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-O3 -xHost -ip'
+    export CFLAGS='-${OPTI} -xHost -ip'
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -237,6 +252,7 @@ curl () {
     printf "export CURL=%s\n" "$CURL" >> ${WRF_ENVIRONMENT}
 }
 
+
 hdf5 () {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
@@ -244,18 +260,15 @@ hdf5 () {
     export CC=mpiicc
     export CXX=mpiicpc
     export FC=mpiifort
-    export CFLAGS='-O3 -xHost -ip'
-    export CXXFLAGS='-O3 -xHost -ip'
-    export FCFLAGS='-O3 -xHost -ip'
+    export CFLAGS='-${OPTI} -xHost -ip'
+    export CXXFLAGS='-${OPTI} -xHost -ip'
+    export FCFLAGS='-${OPTI} -xHost -ip'
 
     cd ${PREFIX}/${PACKAGES}
 
     git_lazy_clone $this_package
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
-
-    git checkout master
-    git checkout ${src_packages_version[$this_package]}
 
     autoreconf -if
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} \
@@ -303,9 +316,6 @@ netcdf_c () {
 
     git_lazy_clone $this_package
 
-    git checkout master
-    git checkout ${src_packages_version[$this_package]}
-
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
     autoreconf -i -if
@@ -348,9 +358,6 @@ netcdf_f () {
 
     git_lazy_clone $this_package
 
-    git checkout master
-    git checkout ${src_packages_version[$this_package]}
-
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
     autoreconf -i -if
@@ -378,12 +385,12 @@ pnetcdf () {
     export MPICXX=mpiicpc
     export MPIF90=mpiifort
     export MPIF77=mpiifort
-    export CFLAGS='-O3 -xHost -ip -no-prec-div -shared-intel'
-    export CXXFLAGS='-O3 -xHost -ip -no-prec-div -shared-intel'
+    export CFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel'
+    export CXXFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel'
     export F77=ifort
     export FC=ifort
     export F90=iifort
-    export FFLAGS='-O3 -xHost -ip -no-prec-div -shared-intel'
+    export FFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel'
     export CPP='icc -E'
     export CXXCPP='icpc -E'
     export CPPFLAGS="-I${HDF5}/include -I${ZLIB}/include"
@@ -393,9 +400,6 @@ pnetcdf () {
     cd ${PREFIX}/${PACKAGES}
 
     git_lazy_clone $this_package
-
-    git checkout master
-    git checkout ${src_packages_version[$this_package]}
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
@@ -426,8 +430,8 @@ libpng () {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-O3 -xHost -ip'
-    export CXXFLAGS='-O3 -xHost -ip -no-prec-div -shared-intel -fPIC'
+    export CFLAGS='-${OPTI} -xHost -ip'
+    export CXXFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel -fPIC'
     export CPPFLAGS="-I${ZLIB}/include"
     export ZLIBLIB=${ZLIB}/lib
     export ZLIBINC=${ZLIB}/include
@@ -437,10 +441,6 @@ libpng () {
     cd ${PREFIX}/${PACKAGES}
 
     git_lazy_clone $this_package
-
-    git checkout master
-    git checkout ${src_packages_version[$this_package]}
-
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
@@ -466,9 +466,6 @@ jasper () {
     git_lazy_clone $this_package
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
-
-    git checkout master
-    git checkout ${src_packages_version[$this_package]}
 
     export CC=icc
     export CXX=icpc
@@ -512,15 +509,84 @@ netcdf_cf() {
     cp -pv ${PREFIX}/${CATEGORY}/netcdf_?/bin/n?-config ${PREFIX}/${CATEGORY}/${this_package}/bin
 
     export NETCDF_CF=${PREFIX}/${CATEGORY}/${this_package}
-    printf "export PATH=$PATH:%s\n" "$NETCDF_CF/bin" >> ${WRF_ENVIRONMENT}
     printf "export NETCDF_CF=%s\n" "$NETCDF_CF" >> ${WRF_ENVIRONMENT}
     printf "export NETCDF=%s\n" "$NETCDF_CF" >> ${WRF_ENVIRONMENT}
 }
 
+switch_autoconf() {
+#   newer automake 1.16.1 for flex/yacc fall back to 1.13.4 all others
+    module list
+    module remove ${environment_version[automake]}
+    module list 
+}
+
+flex() {
+    local this_package=${FUNCNAME[0]}
+    line_printer ${FUNCNAME[0]}
+
+    export CC=icc
+    export CFLAGS='-${OPTI} -xHost -ip -static-intel'
+
+    cd ${PREFIX}/${PACKAGES}
+
+    git_lazy_clone $this_package
+
+    cd ${PREFIX}/${PACKAGES}/${this_package}
+
+    ./autogen.sh
+    ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} 
+    
+    make 
+    make install
+
+    export FLEX=${PREFIX}/${CATEGORY}/${this_package}
+    export FLEX_LIB_DIR=${PREFIX}/${CATEGORY}/${this_package}/lib
+    printf "export FLEX=%s/bin/flex\n" "$FLEX" >> ${WRF_ENVIRONMENT}
+    printf "export FLEX_LIB_DIR=%s\n" "$FLEX_LIB_DIR" >> ${WRF_ENVIRONMENT}
+}
+
+
+yacc() {
+    local this_package=${FUNCNAME[0]}
+    line_printer ${FUNCNAME[0]}
+
+    export CC=icc
+    export CFLAGS='-${OPTI} -xHost -ip -static-intel'
+
+    cd ${PREFIX}/${PACKAGES}
+
+    git_lazy_clone $this_package
+
+    cd ${PREFIX}/${PACKAGES}/${this_package}
+
+    ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} \
+
+    make 
+    make install
+
+    export YACC="${PREFIX}/${CATEGORY}/${this_package}"
+    printf "export \"YACC=%s/bin/yacc %s\"\n" "$YACC" '-d' >> ${WRF_ENVIRONMENT}
+}
+
 
 persist_ld_library_path () {
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_INITIAL:${HDF5}/lib:${ZLIB}/lib:${NETCDF_CF}/lib:${CURL}/lib:${PNETCDF}/lib:${LIBPNG}/lib:${NETCDF_C}/lib:${NETCDF_F}/lib:${JASPER}/lib
+    export LD_LIBRARY_PATH="$LD_LIBRARY_PATH_INITIAL:${HDF5}/lib:${ZLIB}/lib:${NETCDF_CF}/lib:${CURL}/lib:${PNETCDF}/lib:${LIBPNG}/lib:${NETCDF_C}/lib:${NETCDF_F}/lib:${JASPER}/lib64:${FLEX}/lib"
     printf "export LD_LIBRARY_PATH=%s\n" "$LD_LIBRARY_PATH" >> ${WRF_ENVIRONMENT}
+}
+
+generate_peroration () {
+    printf "export PATH=%s:%s:%s:${PATH}\n" "${FLEX}/bin" "${YACC}/bin" "$NETCDF_CF/bin" >> ${WRF_ENVIRONMENT} 
+   
+    printf "echo \"[info] Build date $(date)\"\n" >> ${WRF_ENVIRONMENT} 
+    printf "echo \"[info] Compiler: %s, MPI: %s\"\n" ${environment_version[intel]} ${environment_version[intel-mpi]} >> ${WRF_ENVIRONMENT}
+
+    printf 'echo \"[modules] loading modules\"\n' >> ${WRF_ENVIRONMENT}
+
+    for i_module in "${!environment_version[@]}"; do
+        printf "module load %s\n" "${environment_version[$i_module]}" >> ${WRF_ENVIRONMENT}
+    done
+
+    printf 'module list\n' >> ${WRF_ENVIRONMENT}
 }
 
 
@@ -528,20 +594,13 @@ wrf () {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
 
-    export JASPERLIB=${PREFIX}/${CATEGORY}/jasper/lib
-    export JASPERINC=${PREFIX}/${CATEGORY}/jasper/include/jasper
-
     export F77=mpiifort
     export CXX=mpiicpc
     export CC=mpiicc
-    export FFLAGS='-O3 -xHost -ip -no-prec-div'
-    export CFLAGS='-O3 -xHost -ip -no-prec-div'
-    export CPPFLAGS='-O3 -xHost -ip -no-prec-div'
-
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_INITIAL:${HDF5}/lib:${ZLIB}/lib:${NETCDF_CF}/lib:${CURL}/lib:${PNETCDF}/lib
-
-    git checkout master
-    git checkout ${src_packages_version[$this_package]}  
+    export FFLAGS='-${OPTI} -xHost -ip -no-prec-div -fp-model precise'
+    export CFLAGS='-${OPTI} -xHost -ip -no-prec-div'
+    export CPPFLAGS='-${OPTI} -xHost -ip -no-prec-div'
+    export CXXFLAGS='-fp-model precise'
 
     export J="-j ${processes}"
 
@@ -551,13 +610,22 @@ wrf () {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
-    git checkout master
-    git checkout ${src_packages_version[$this_package]}
+    if [[ ${WRF_CHEM} == 1 ]]; then
+        printf "export WRF_CHEM=1\n" >> ${WRF_ENVIRONMENT}
+        printf "export WRF_EM_CORE=1\n" >> ${WRF_ENVIRONMENT}
+        printf "export WRF_NMM_CORE=0\n" >> ${WRF_ENVIRONMENT}
+    fi
 
-    export WRF=${PREFIX}/${CATEGORY}/${this_package}
+    if [[ ${WRF_KPP} == 1 ]]; then
+        printf "export WRF_KPP=1\n" >> ${WRF_ENVIRONMENT}
+    fi
+
     WRF_DIR=$WRF   
+    export WRF=${PREFIX}/${PACKAGES}/${this_package}
 
     printf "export WRF_DIR=%s\n" "$WRF" >> ${WRF_ENVIRONMENT}
+    printf "export WRFIO_NCD_LARGE_FILE_SUPPORT=%s\n" "$WRFIO_NCD_LARGE_FILE_SUPPORT" >> ${WRF_ENVIRONMENT}
+    printf "export J=\"%s\"\n" "$J" >> ${WRF_ENVIRONMENT}
 
     cat << EOF
 
@@ -565,7 +633,7 @@ wrf () {
 
     cd to ${PREFIX}/${PACKAGES}/${this_package}
 
-    source the WRF_ENVIRONMENT file (default location: ${PREFIX}/${PACKAGES}/wrf_environment.sh)
+    source the generated WRF_ENVIRONMENT file: source ${PREFIX}/${PACKAGES}/wrf_environment.sh
     
     load the compiler module matching the parameter block, e.g.
     module load intel/19.1.0 
@@ -580,7 +648,8 @@ wrf () {
         DM_CC=mpiicc
     
     compile model with e.g. ./compile -j $processes <model name>
-    
+        for WRF-chem: additionally issue ./compile emi_conv
+
     issue clean before making changes to recompile or clean -a which also overwrites configure.wrf
 
     ################################################################################################
@@ -603,23 +672,19 @@ wps () {
     export F90=mpiifort
 
     export CFLAGS='-O1 -xHost -ip -no-prec-div -shared-intel -fPIC'
-    export CXXFLAGS='-O1 -xHost -ip -no-prec-div -shared-intel -fPIC'
-    export FFLAGS='-O1 -xHost -ip -no-prec-div -fPIC -shared-intel'
+    export CXXFLAGS='-O1 -xHost -ip -no-prec-div -shared-intel -fPIC -fp-model precise'
+    export FFLAGS='-O1 -xHost -ip -no-prec-div -fPIC -shared-intel -fp-model precise'
     export LDFLAGS='-qopenmp'
 
     cd ${PREFIX}/${PACKAGES}
 
     git_lazy_clone $this_package
-
-    git checkout master
-    git checkout ${src_packages_version[$this_package]}
-
-
+   
     cat <<EOF
 
     ################################################################################################
 
-    run ./configure and select option 19 for Intel/distributed memory parallelism
+    run ./configure and select option 19 for Intel/distributed memory parallelism (dmpar)
     edit the resulting file configure.wps with: 
     DM_FC: mpiifort
     DM_CC: mpiicc
@@ -632,8 +697,9 @@ wps () {
     COMPRESSION_INC=-I<jasperpath>/include -I<zlibpath>/include -I<libpngpath>/include
     
     Example:
-    COMPRESSION_LIBS=-L/opt/worf/jasper/lib -L/opt/worf/zlib/lib -L/opt/worf/libpng/lib -ljasper -lpng -lz
-    COMPRESSION_INC=-I/opt/worf/jasper/include/jasper -L/opt/worf/zlib/lib -L/opt/worf/libpng/lib
+
+    COMPRESSION_LIBS=-L/gpfs/data/home/username/opt/jasper/lib64 -L/gpfs/data/data/home/usernameme/opt/zlib/lib -L/gpfs/data/data/home/username/opt/libpng/lib -ljasper -lpng -lz
+    COMPRESSION_INC=-I/gpfs/data/home/username/opt/jasper/include -L/gpfs/data/home/username/opt/zlib/lib -L/gpfs/data/home/username/opt/libpng/lib
 
     then run ./compile
     issue clean before making changes to recompile or clean -a which also overwrites configure.wps
@@ -643,9 +709,13 @@ wps () {
 EOF
 }
 
+
 main () {
     buildclean
     initialize
+    flex
+    yacc
+    switch_autoconf
     zlib
     curl
     hdf5
@@ -656,10 +726,13 @@ main () {
     libpng
     jasper
     persist_ld_library_path
+    generate_peroration
     wrf
 }
 
-if [[ "$1" == wps ]]; then
+
+if [[ "$1" == 'wps' ]]; then
+    export wps='wps'
     initialize
     wps
     exit $?

@@ -1,4 +1,5 @@
-README WRF Environment Installation script facilitates the installation of the dependencies of WRF/WPS.
+README WRF Environment Installation script facilitates the installation of the dependencies 
+for WRF/WRF-Chem/WPS.
 
 Buildtime: All the necessary parameterization is to fill out the block marked for required parameters.
 
@@ -7,16 +8,20 @@ Required environment:
     Intel Parellel Studio (tested 19.1.0)
     cmake (tested 3.15.1)
     perl (tested 5.26.2)
+    automake (tested 1.16.1 for lex/yacc otherwise 1.13.4) 
+    gettext (tested 0.19.8.1)
+    yacc (tested 1.9)
+    flex (tested 2.6.4)
 
 The Intel compilers, Intel MPI, cmake and perl need to be loadable through the module facility.
-This script requires 2 passes to build WRF, 3 for WRF/WPS.
+This script requires 2 passes to build WRF, 3 for WRF/WPS. 
 
 
-(1) Edit the script worf.sh parameter block top of the file to match the localenvironment.
+(1) Edit the script worf.sh parameter block top of the file to match the local environment.
 
 (2) Change to the script directory and run it from a bash shell: bash ./worf.sh
 
-(3) if testing was enabled (test='test') then the total compile time for the environment 
+(3) If testing was enabled (test='test') then the total compile time for the environment 
     dependencies on a 2020 high-end SMP is around an hour wallclock time; without testing about 20'/
 
 (4) Check if the dependencies have all been deployed to 
@@ -43,7 +48,9 @@ This script requires 2 passes to build WRF, 3 for WRF/WPS.
     a 2020 high-end SMP machine takes around an hour -O3 optmized wallclock compile time;
     about 10' unoptimized. 
 
-(8) Configure WPS: run: bash worf.sh wps 
+(8) For WRF-Chem compile the external emissions conversion as well: ./compile emi_conv
+       
+(9) Configure WPS: run: bash worf.sh wps 
     for a WPS build environment and follow the screen-printed instructions
 
     run ./configure and select option 19 for Intel/distributed memory parallelism
@@ -53,22 +60,24 @@ This script requires 2 passes to build WRF, 3 for WRF/WPS.
     DM_CC: mpiicc
     LDFAGS: -qoopenmp
 
-    then enter the library and include paths from the generated wrf_environment.sh file
-    (see paramter section for location)
+    then edit the library and include paths from the generated wrf_environment.sh file
+    (see paramter section and wrf_environment.sh for the respective locations)
 
-    COMPRESSION_LIBS=-L<jasperpath>/lib -L<zlibpath>/lib -L<libpngpath>/lib -lpng -lz
+    COMPRESSION_LIBS=-L<jasperpath>/lib -L<zlibpath>/lib -L<libpngpath>/lib -ljasper -lpng -lz
     COMPRESSION_INC=-I<jasperpath>/include -I<zlibpath>/include -I<libpngpath>/include
 
     Example:
-    COMPRESSION_LIBS=-L/opt/worf/jasper/lib -L/opt/worf/zlib/lib -L/opt/worf/libpng/lib -ljasper -lpng -lz
-    COMPRESSION_INC=-I/opt/worf/jasper/include -L/opt/worf/zlib/lib -L/opt/worf/libpng/lib
+
+    COMPRESSION_LIBS=-L/gpfs/data/home/username/opt/jasper/lib64 -L/gpfs/data/data/home/usernameme/opt/zlib/lib -L/gpfs/data/data/home/username/opt/libpng/lib -ljasper -lpng -lz
+    COMPRESSION_INC=-I/gpfs/data/home/username/opt/jasper/include -L/gpfs/data/home/username/opt/zlib/lib -L/gpfs/data/home/username/opt/libpng/lib
 
     then run ./compile
    
-    look for geogrid.exe and metgrid.exe in the wps package directory for a successful build
+    geogrid.exe, metgrid.exe and ungrib.exe in the wps package directory signify a successful build
 
 
-Runtime:
+
+Runtime/Batch:
 
 Always first source the WRF_ENVIRONMENT file (default location: ${PREFIX}/${PACKAGES}/wrf_environment.sh)
 e.g. source wrf_environment.sh 
