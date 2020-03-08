@@ -1,7 +1,7 @@
 #!/bin/bash
 
 <<scriptdoc
-This WRF environment installation script facilitates the building the dependencies of WRF/WPS.
+This WRF environment installation script facilitates the building the dependencies of WRF/WRF-Chem/WPS.
  
 All the necessary parameterization is to fill out the block marked for
 required parameters and adapt the respective module environment_version names/versions. 
@@ -17,7 +17,7 @@ scriptdoc
 ### begin required parameters ###
 
 initialize() {
-    export PREFIX=/gpfs/data/fs71391/malexand/342c          # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
+    export PREFIX=/gpfs/data/home/username/mywrf          # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
     export CATEGORY='opt'
     export PACKAGES='pkg'
 
@@ -33,14 +33,9 @@ initialize() {
     environment_version[help2man]='help2man/1.47.8-intel-19.0.5.281-k3tb6t4'
 
     WRF_ENVIRONMENT=${PREFIX}/${PACKAGES}/wrf_environment.sh  # location for generated wrf environment file
-    WRF_CHEM=1
-    WRF_KPP=1
+    WRF_CHEM=0
+    WRF_KPP=0
     WRFIO_NCD_LARGE_FILE_SUPPORT=1
-
-    # todo kpp     
-    export KPP_HOME=/gpfs/data/fs71391/malexand/342c/pkg/wrf/chem/KPP/kpp/kpp-2.1/
-    # add path /gpfs/data/fs71391/malexand/342c/pkg/wrf/chem/KPP/kpp/kpp-2.1/bin
-    # configure_kpp script broken ./chem/KPP/configure_kpp
 
     export OPTI=O0
 
@@ -90,6 +85,7 @@ initialize() {
 
     [[ $wps != 'wps' ]] && check_intelgnu
 }
+
 
 buildclean () {
     unset src_packages
@@ -148,6 +144,7 @@ buildclean () {
     fi
 }
 
+
 git_lazy_clone() {
     local this_package=$1
 
@@ -179,6 +176,7 @@ git_lazy_clone() {
     fi
 }
 
+
 check_intelgnu() {
     if [[ ${intelgnu} == 'intel' ]]; then
         for i_module in "${!environment_version[@]}"; do
@@ -205,6 +203,7 @@ line_printer() {
     echo -e "\n\n\n[info] building $1"
 }
 
+
 zlib () {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
@@ -229,6 +228,7 @@ zlib () {
     printf "export ZLIB=%s\n" "$ZLIB" >> ${WRF_ENVIRONMENT}
 }
 
+
 curl () {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
@@ -251,6 +251,7 @@ curl () {
     export CURL=${PREFIX}/${CATEGORY}/${this_package}
     printf "export CURL=%s\n" "$CURL" >> ${WRF_ENVIRONMENT}
 }
+
 
 hdf5 () {
     local this_package=${FUNCNAME[0]}
@@ -569,7 +570,7 @@ yacc() {
 
 
 persist_ld_library_path () {
-    export LD_LIBRARY_PATH="$LD_LIBRARY_PATH_INITIAL:${HDF5}/lib:${ZLIB}/lib:${NETCDF_CF}/lib:${CURL}/lib:${PNETCDF}/lib:${LIBPNG}/lib:${NETCDF_C}/lib:${NETCDF_F}/lib:${JASPER}/lib64:${FLEX}:/lib"
+    export LD_LIBRARY_PATH="$LD_LIBRARY_PATH_INITIAL:${HDF5}/lib:${ZLIB}/lib:${NETCDF_CF}/lib:${CURL}/lib:${PNETCDF}/lib:${LIBPNG}/lib:${NETCDF_C}/lib:${NETCDF_F}/lib:${JASPER}/lib64:${FLEX}/lib"
     printf "export LD_LIBRARY_PATH=%s\n" "$LD_LIBRARY_PATH" >> ${WRF_ENVIRONMENT}
 }
 
@@ -683,7 +684,7 @@ wps () {
 
     ################################################################################################
 
-    run ./configure and select option 19 for Intel/distributed memory parallelism
+    run ./configure and select option 19 for Intel/distributed memory parallelism (dmpar)
     edit the resulting file configure.wps with: 
     DM_FC: mpiifort
     DM_CC: mpiicc
@@ -696,8 +697,9 @@ wps () {
     COMPRESSION_INC=-I<jasperpath>/include -I<zlibpath>/include -I<libpngpath>/include
     
     Example:
-    COMPRESSION_LIBS=-L/opt/worf/jasper/lib -L/opt/worf/zlib/lib -L/opt/worf/libpng/lib -ljasper -lpng -lz
-    COMPRESSION_INC=-I/opt/worf/jasper/include/jasper -L/opt/worf/zlib/lib -L/opt/worf/libpng/lib
+
+    COMPRESSION_LIBS=-L/gpfs/data/home/username/opt/jasper/lib64 -L/gpfs/data/data/home/usernameme/opt/zlib/lib -L/gpfs/data/data/home/username/opt/libpng/lib -ljasper -lpng -lz
+    COMPRESSION_INC=-I/gpfs/data/home/username/opt/jasper/include -L/gpfs/data/home/username/opt/zlib/lib -L/gpfs/data/home/username/opt/libpng/lib
 
     then run ./compile
     issue clean before making changes to recompile or clean -a which also overwrites configure.wps
@@ -706,6 +708,7 @@ wps () {
 
 EOF
 }
+
 
 main () {
     buildclean
@@ -726,6 +729,7 @@ main () {
     generate_peroration
     wrf
 }
+
 
 if [[ "$1" == 'wps' ]]; then
     export wps='wps'
