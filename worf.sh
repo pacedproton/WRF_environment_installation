@@ -17,7 +17,7 @@ scriptdoc
 ### begin required parameters ###
 
 initialize() {
-    export PREFIX=/gpfs/data/home/username/mywrf          # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
+    export PREFIX=/gpfs/data/fs71391/malexand/420c          # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
     export CATEGORY='opt'
     export PACKAGES='pkg'
 
@@ -33,7 +33,7 @@ initialize() {
     environment_version[help2man]='help2man/1.47.8-intel-19.0.5.281-k3tb6t4'
 
     WRF_ENVIRONMENT=${PREFIX}/${PACKAGES}/wrf_environment.sh  # location for generated wrf environment file
-    WRF_CHEM=0
+    WRF_CHEM=1
     WRF_KPP=0
     WRFIO_NCD_LARGE_FILE_SUPPORT=1
 
@@ -66,7 +66,7 @@ initialize() {
     src_packages_version[curl]='refs/tags/curl-7_68_0'
     src_packages_version[libpng]='refs/tags/v1.6.35'
     src_packages_version[jasper]='refs/tags/version-2.0.16'
-    src_packages_version[wrf]='refs/tags/v4.1.4'
+    src_packages_version[wrf]='refs/tags/v4.0.3'
     src_packages_version[hdf5]='hdf5_1_10_6'
     src_packages_version[netcdf_c]='refs/tags/v4.7.3'
     src_packages_version[netcdf_f]='refs/tags/v4.5.2'
@@ -209,7 +209,7 @@ zlib () {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-${OPTI} -xHost -ip'
+    export CFLAGS="-${OPTI} -xHost -ip"
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -234,7 +234,7 @@ curl () {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-${OPTI} -xHost -ip'
+    export CFLAGS="-${OPTI} -xHost -ip"
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -260,9 +260,9 @@ hdf5 () {
     export CC=mpiicc
     export CXX=mpiicpc
     export FC=mpiifort
-    export CFLAGS='-${OPTI} -xHost -ip'
-    export CXXFLAGS='-${OPTI} -xHost -ip'
-    export FCFLAGS='-${OPTI} -xHost -ip'
+    export CFLAGS="-${OPTI} -xHost -ip"
+    export CXXFLAGS="-${OPTI} -xHost -ip"
+    export FCFLAGS="-${OPTI} -xHost -ip"
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -385,12 +385,12 @@ pnetcdf () {
     export MPICXX=mpiicpc
     export MPIF90=mpiifort
     export MPIF77=mpiifort
-    export CFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel'
-    export CXXFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel'
+    export CFLAGS="-${OPTI} -xHost -ip -no-prec-div -shared-intel"
+    export CXXFLAGS="-${OPTI} -xHost -ip -no-prec-div -shared-intel"
     export F77=ifort
     export FC=ifort
     export F90=iifort
-    export FFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel'
+    export FFLAGS="-${OPTI} -xHost -ip -no-prec-div -shared-intel"
     export CPP='icc -E'
     export CXXCPP='icpc -E'
     export CPPFLAGS="-I${HDF5}/include -I${ZLIB}/include"
@@ -430,8 +430,8 @@ libpng () {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-${OPTI} -xHost -ip'
-    export CXXFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel -fPIC'
+    export CFLAGS="-${OPTI} -xHost -ip"
+    export CXXFLAGS="-${OPTI} -xHost -ip -no-prec-div -shared-intel -fPIC"
     export CPPFLAGS="-I${ZLIB}/include"
     export ZLIBLIB=${ZLIB}/lib
     export ZLIBINC=${ZLIB}/include
@@ -525,7 +525,7 @@ flex() {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-${OPTI} -xHost -ip -static-intel'
+    export CFLAGS="-${OPTI} -xHost -ip -static-intel"
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -551,7 +551,7 @@ yacc() {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-${OPTI} -xHost -ip -static-intel'
+    export CFLAGS="-${OPTI} -xHost -ip -static-intel"
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -597,9 +597,9 @@ wrf () {
     export F77=mpiifort
     export CXX=mpiicpc
     export CC=mpiicc
-    export FFLAGS='-${OPTI} -xHost -ip -no-prec-div -fp-model precise'
-    export CFLAGS='-${OPTI} -xHost -ip -no-prec-div'
-    export CPPFLAGS='-${OPTI} -xHost -ip -no-prec-div'
+    export FFLAGS="-${OPTI} -xHost -ip -no-prec-div -fp-model precise"
+    export CFLAGS="-${OPTI} -xHost -ip -no-prec-div"
+    export CPPFLAGS="-${OPTI} -xHost -ip -no-prec-div -fp-model precise"
     export CXXFLAGS='-fp-model precise'
 
     export J="-j ${processes}"
@@ -612,7 +612,6 @@ wrf () {
 
     if [[ ${WRF_CHEM} == 1 ]]; then
         printf "export WRF_CHEM=1\n" >> ${WRF_ENVIRONMENT}
-        printf "export WRF_EM_CORE=1\n" >> ${WRF_ENVIRONMENT}
         printf "export WRF_NMM_CORE=0\n" >> ${WRF_ENVIRONMENT}
     fi
 
@@ -626,6 +625,7 @@ wrf () {
     printf "export WRF_DIR=%s\n" "$WRF" >> ${WRF_ENVIRONMENT}
     printf "export WRFIO_NCD_LARGE_FILE_SUPPORT=%s\n" "$WRFIO_NCD_LARGE_FILE_SUPPORT" >> ${WRF_ENVIRONMENT}
     printf "export J=\"%s\"\n" "$J" >> ${WRF_ENVIRONMENT}
+    printf "export WRF_EM_CORE=1\n" >> ${WRF_ENVIRONMENT}
 
     cat << EOF
 
