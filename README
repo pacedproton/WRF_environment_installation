@@ -30,23 +30,17 @@ This script requires 2 passes to build WRF, 3 for WRF/WPS.
 (5) Source the WRF_ENVIRONMENT file (default location: ${PREFIX}/${PACKAGES}/wrf_environment.sh)
     source wrf_environment.sh 
 
-(6) Load the compiler module matching the parameter block, e.g.
-    module load intel/19.1.0
-
-    load the MPI module matching the parameter block, e.g.
-    module load intel-mpi/2019.6
-
 (6) Configure WRF: ./configure [-d without optimization]
 
         edit configure.wrf, e.g. with
         DM_FC=mpiifort
         DM_CC=mpiicc
 
-    issue clean before making changes to recompile or clean -a which also overwrites configure.wrf
+    issue ./clean before making changes to recompile or clean -a which also overwrites configure.wrf
  
 (7) Compile WRF: ./compile <model name>
-    a 2020 high-end SMP machine takes around an hour -O3 optmized wallclock compile time;
-    about 10' unoptimized. 
+    a 2020 high-end SMP machine takes around an hour -O2 optmized wallclock compile time;
+    about 10' unoptimized. Parallel compile is set to 2 proccess, do not increase. 
 
 (8) For WRF-Chem compile the external emissions conversion as well: ./compile emi_conv
        
@@ -80,5 +74,5 @@ This script requires 2 passes to build WRF, 3 for WRF/WPS.
 Runtime/Batch:
 
 Always first source the WRF_ENVIRONMENT file (default location: ${PREFIX}/${PACKAGES}/wrf_environment.sh)
-e.g. source wrf_environment.sh 
+e.g. source wrf_environment.sh same as . wrf_environment.sh
 

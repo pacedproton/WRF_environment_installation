@@ -17,7 +17,7 @@ scriptdoc
 ### begin required parameters ###
 
 initialize() {
-    export PREFIX=/gpfs/data/fs71391/malexand/420c          # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
+    export PREFIX=/home/fs71416/malexand2/427c  # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
     export CATEGORY='opt'
     export PACKAGES='pkg'
 
@@ -37,12 +37,12 @@ initialize() {
     WRF_KPP=0
     WRFIO_NCD_LARGE_FILE_SUPPORT=1
 
-    export OPTI=O0
+    export OPTI=O2
 
     ### end required parameters ###
 
 
-    export check=''                             # possible values: 'check', empty string '' 
+    export check='check'                             # possible values: 'check', empty string '' 
     export intelgnu='intel'                     # presently: 'intel' only
     export clean='clean'                        # 'clean', ''
 
@@ -76,7 +76,7 @@ initialize() {
 
 
     if [[ -f ${WRF_ENVIRONMENT} && wps != 'wps' ]]; then
-        truncate -s 0 "${WRF_ENVIRONMENT}"
+        truncate -s 0 ${WRF_ENVIRONMENT}
     fi
 
     mkdir -p ${PREFIX}/{${CATEGORY},${PACKAGES},common/${PACKAGES},tmp}
@@ -184,7 +184,8 @@ check_intelgnu() {
             module load ${environment_version[$i_module]}
         done
 
-        MPI=$(module path ${environment_version[intel-mpi]})
+    export MPI=$(( module show ${environment_version[intel-mpi]} 2>&1 ) | awk '$2 ~ /VSC_MPI_BASE/ {print $3}')
+
     else
         : # add GCC/OpenMPI
     fi
@@ -193,7 +194,6 @@ check_intelgnu() {
 	export LD_LIBRARY_PATH_INITIAL=$LD_LIBRARY_PATH
     fi
 
-    export MPI=$(module show ${environment_version[intel-mpi]} | awk '$2 ~ /VSC_MPI_BASE/ {print $3}')
     printf "export LD_LIBRARY_PATH_INITIAL=%s\n" "$LD_LIBRARY_PATH_INITIAL" >> ${WRF_ENVIRONMENT}
     printf "export MPI=%s\n" "$MPI" >> ${WRF_ENVIRONMENT}
 }
@@ -221,8 +221,8 @@ zlib () {
 
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} #remove -- static
 
-    make $check 
     make install
+    make $check 
 
     export ZLIB=${PREFIX}/${CATEGORY}/${this_package}
     printf "export ZLIB=%s\n" "$ZLIB" >> ${WRF_ENVIRONMENT}
@@ -245,8 +245,8 @@ curl () {
     autoreconf -if
 
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} 
-    make $check -j $processes
     make install
+    make $check -j $processes
 
     export CURL=${PREFIX}/${CATEGORY}/${this_package}
     printf "export CURL=%s\n" "$CURL" >> ${WRF_ENVIRONMENT}
@@ -308,7 +308,7 @@ netcdf_c () {
     export CXXFLAGS='-O1 -xHost -ip -no-prec-div -shared-intel -fPIC'
     export FFLAGS='-O1 -xHost -ip -no-prec-div -fPIC' 
 
-    export LDFLAGS="-L${HDF5}/lib -L${ZLIB}/lib -lhdf5 -lhdf5_hl -lz"
+    export LDFLAGS="-L${HDF5}/lib -L${ZLIB}/lib"
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_INITIAL:${HDF5}/lib:${ZLIB}/lib:${CURL}/lib
     export CPPFLAGS="-I${HDF5}/include -I${ZLIB}/include"
 
@@ -421,7 +421,7 @@ pnetcdf () {
     make install
 
     export PNETCDF=${PREFIX}/${CATEGORY}/${this_package}
-    printf "export PNETCDF_C=%s\n" "$PNETCDF" >> ${WRF_ENVIRONMENT}
+    printf "export PNETCDF=%s\n" "$PNETCDF" >> ${WRF_ENVIRONMENT}
 }
 
 
@@ -602,7 +602,7 @@ wrf () {
     export CPPFLAGS="-${OPTI} -xHost -ip -no-prec-div -fp-model precise"
     export CXXFLAGS='-fp-model precise'
 
-    export J="-j ${processes}"
+    export J=2   
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -635,12 +635,6 @@ wrf () {
 
     source the generated WRF_ENVIRONMENT file: source ${PREFIX}/${PACKAGES}/wrf_environment.sh
     
-    load the compiler module matching the parameter block, e.g.
-    module load intel/19.1.0 
-
-    load the MPI module matching the parameter block, e.g.
-    module load intel-mpi/2019.6
-
     ./configure [-d without optimization]
 
     edit configure.wrf, e.g. with
@@ -650,7 +644,7 @@ wrf () {
     compile model with e.g. ./compile -j $processes <model name>
         for WRF-chem: additionally issue ./compile emi_conv
 
-    issue clean before making changes to recompile or clean -a which also overwrites configure.wrf
+    issue ./clean before making changes to recompile or clean -a which also overwrites configure.wrf
 
     ################################################################################################
 
