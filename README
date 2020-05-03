@@ -31,6 +31,8 @@ This script requires 2 passes to build WRF, 3 for WRF/WPS.
     source wrf_environment.sh 
 
 (6) Configure WRF: ./configure [-d without optimization]
+       
+        select DMPAR - Intel (15)        
 
         edit configure.wrf, e.g. with
         DM_FC=mpiifort

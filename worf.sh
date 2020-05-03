@@ -17,7 +17,7 @@ scriptdoc
 ### begin required parameters ###
 
 initialize() {
-    export PREFIX=/home/fs71416/malexand2/427c  # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
+    export PREFIX=/home/mydir/wrfbuildtag       # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
     export CATEGORY='opt'
     export PACKAGES='pkg'
 
@@ -42,7 +42,7 @@ initialize() {
     ### end required parameters ###
 
 
-    export check='check'                             # possible values: 'check', empty string '' 
+    export check=''                             # possible values: 'check', empty string '' 
     export intelgnu='intel'                     # presently: 'intel' only
     export clean='clean'                        # 'clean', ''
 
@@ -594,14 +594,6 @@ wrf () {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
 
-    export F77=mpiifort
-    export CXX=mpiicpc
-    export CC=mpiicc
-    export FFLAGS="-${OPTI} -xHost -ip -no-prec-div -fp-model precise"
-    export CFLAGS="-${OPTI} -xHost -ip -no-prec-div"
-    export CPPFLAGS="-${OPTI} -xHost -ip -no-prec-div -fp-model precise"
-    export CXXFLAGS='-fp-model precise'
-
     export J=2   
 
     cd ${PREFIX}/${PACKAGES}
@@ -635,13 +627,15 @@ wrf () {
 
     source the generated WRF_ENVIRONMENT file: source ${PREFIX}/${PACKAGES}/wrf_environment.sh
     
-    ./configure [-d without optimization]
+    ./configure
+
+    select DMPAR - Intel (15) 
 
     edit configure.wrf, e.g. with
         DM_FC=mpiifort
         DM_CC=mpiicc
     
-    compile model with e.g. ./compile -j $processes <model name>
+    compile model with e.g. ./compile <model name>
         for WRF-chem: additionally issue ./compile emi_conv
 
     issue ./clean before making changes to recompile or clean -a which also overwrites configure.wrf
