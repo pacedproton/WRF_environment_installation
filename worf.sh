@@ -17,7 +17,7 @@ scriptdoc
 ### begin required parameters ###
 
 initialize() {
-    export PREFIX=/gpfs/data/home/username/mywrf          # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
+    export PREFIX=/home/mydir/wrfbuildtag       # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
     export CATEGORY='opt'
     export PACKAGES='pkg'
 
@@ -33,11 +33,11 @@ initialize() {
     environment_version[help2man]='help2man/1.47.8-intel-19.0.5.281-k3tb6t4'
 
     WRF_ENVIRONMENT=${PREFIX}/${PACKAGES}/wrf_environment.sh  # location for generated wrf environment file
-    WRF_CHEM=0
+    WRF_CHEM=1
     WRF_KPP=0
     WRFIO_NCD_LARGE_FILE_SUPPORT=1
 
-    export OPTI=O0
+    export OPTI=O2
 
     ### end required parameters ###
 
@@ -66,7 +66,7 @@ initialize() {
     src_packages_version[curl]='refs/tags/curl-7_68_0'
     src_packages_version[libpng]='refs/tags/v1.6.35'
     src_packages_version[jasper]='refs/tags/version-2.0.16'
-    src_packages_version[wrf]='refs/tags/v4.1.4'
+    src_packages_version[wrf]='refs/tags/v4.0.3'
     src_packages_version[hdf5]='hdf5_1_10_6'
     src_packages_version[netcdf_c]='refs/tags/v4.7.3'
     src_packages_version[netcdf_f]='refs/tags/v4.5.2'
@@ -76,7 +76,7 @@ initialize() {
 
 
     if [[ -f ${WRF_ENVIRONMENT} && wps != 'wps' ]]; then
-        truncate -s 0 "${WRF_ENVIRONMENT}"
+        truncate -s 0 ${WRF_ENVIRONMENT}
     fi
 
     mkdir -p ${PREFIX}/{${CATEGORY},${PACKAGES},common/${PACKAGES},tmp}
@@ -184,7 +184,8 @@ check_intelgnu() {
             module load ${environment_version[$i_module]}
         done
 
-        MPI=$(module path ${environment_version[intel-mpi]})
+    export MPI=$(( module show ${environment_version[intel-mpi]} 2>&1 ) | awk '$2 ~ /VSC_MPI_BASE/ {print $3}')
+
     else
         : # add GCC/OpenMPI
     fi
@@ -193,7 +194,6 @@ check_intelgnu() {
 	export LD_LIBRARY_PATH_INITIAL=$LD_LIBRARY_PATH
     fi
 
-    export MPI=$(module show ${environment_version[intel-mpi]} | awk '$2 ~ /VSC_MPI_BASE/ {print $3}')
     printf "export LD_LIBRARY_PATH_INITIAL=%s\n" "$LD_LIBRARY_PATH_INITIAL" >> ${WRF_ENVIRONMENT}
     printf "export MPI=%s\n" "$MPI" >> ${WRF_ENVIRONMENT}
 }
@@ -209,7 +209,7 @@ zlib () {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-${OPTI} -xHost -ip'
+    export CFLAGS="-${OPTI} -xHost -ip"
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -221,8 +221,8 @@ zlib () {
 
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} #remove -- static
 
-    make $check 
     make install
+    make $check 
 
     export ZLIB=${PREFIX}/${CATEGORY}/${this_package}
     printf "export ZLIB=%s\n" "$ZLIB" >> ${WRF_ENVIRONMENT}
@@ -234,7 +234,7 @@ curl () {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-${OPTI} -xHost -ip'
+    export CFLAGS="-${OPTI} -xHost -ip"
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -245,8 +245,8 @@ curl () {
     autoreconf -if
 
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} 
-    make $check -j $processes
     make install
+    make $check -j $processes
 
     export CURL=${PREFIX}/${CATEGORY}/${this_package}
     printf "export CURL=%s\n" "$CURL" >> ${WRF_ENVIRONMENT}
@@ -260,9 +260,9 @@ hdf5 () {
     export CC=mpiicc
     export CXX=mpiicpc
     export FC=mpiifort
-    export CFLAGS='-${OPTI} -xHost -ip'
-    export CXXFLAGS='-${OPTI} -xHost -ip'
-    export FCFLAGS='-${OPTI} -xHost -ip'
+    export CFLAGS="-${OPTI} -xHost -ip"
+    export CXXFLAGS="-${OPTI} -xHost -ip"
+    export FCFLAGS="-${OPTI} -xHost -ip"
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -308,7 +308,7 @@ netcdf_c () {
     export CXXFLAGS='-O1 -xHost -ip -no-prec-div -shared-intel -fPIC'
     export FFLAGS='-O1 -xHost -ip -no-prec-div -fPIC' 
 
-    export LDFLAGS="-L${HDF5}/lib -L${ZLIB}/lib -lhdf5 -lhdf5_hl -lz"
+    export LDFLAGS="-L${HDF5}/lib -L${ZLIB}/lib"
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_INITIAL:${HDF5}/lib:${ZLIB}/lib:${CURL}/lib
     export CPPFLAGS="-I${HDF5}/include -I${ZLIB}/include"
 
@@ -385,12 +385,12 @@ pnetcdf () {
     export MPICXX=mpiicpc
     export MPIF90=mpiifort
     export MPIF77=mpiifort
-    export CFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel'
-    export CXXFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel'
+    export CFLAGS="-${OPTI} -xHost -ip -no-prec-div -shared-intel"
+    export CXXFLAGS="-${OPTI} -xHost -ip -no-prec-div -shared-intel"
     export F77=ifort
     export FC=ifort
     export F90=iifort
-    export FFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel'
+    export FFLAGS="-${OPTI} -xHost -ip -no-prec-div -shared-intel"
     export CPP='icc -E'
     export CXXCPP='icpc -E'
     export CPPFLAGS="-I${HDF5}/include -I${ZLIB}/include"
@@ -421,7 +421,7 @@ pnetcdf () {
     make install
 
     export PNETCDF=${PREFIX}/${CATEGORY}/${this_package}
-    printf "export PNETCDF_C=%s\n" "$PNETCDF" >> ${WRF_ENVIRONMENT}
+    printf "export PNETCDF=%s\n" "$PNETCDF" >> ${WRF_ENVIRONMENT}
 }
 
 
@@ -430,8 +430,8 @@ libpng () {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-${OPTI} -xHost -ip'
-    export CXXFLAGS='-${OPTI} -xHost -ip -no-prec-div -shared-intel -fPIC'
+    export CFLAGS="-${OPTI} -xHost -ip"
+    export CXXFLAGS="-${OPTI} -xHost -ip -no-prec-div -shared-intel -fPIC"
     export CPPFLAGS="-I${ZLIB}/include"
     export ZLIBLIB=${ZLIB}/lib
     export ZLIBINC=${ZLIB}/include
@@ -525,7 +525,7 @@ flex() {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-${OPTI} -xHost -ip -static-intel'
+    export CFLAGS="-${OPTI} -xHost -ip -static-intel"
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -551,7 +551,7 @@ yacc() {
     line_printer ${FUNCNAME[0]}
 
     export CC=icc
-    export CFLAGS='-${OPTI} -xHost -ip -static-intel'
+    export CFLAGS="-${OPTI} -xHost -ip -static-intel"
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -594,15 +594,7 @@ wrf () {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
 
-    export F77=mpiifort
-    export CXX=mpiicpc
-    export CC=mpiicc
-    export FFLAGS='-${OPTI} -xHost -ip -no-prec-div -fp-model precise'
-    export CFLAGS='-${OPTI} -xHost -ip -no-prec-div'
-    export CPPFLAGS='-${OPTI} -xHost -ip -no-prec-div'
-    export CXXFLAGS='-fp-model precise'
-
-    export J="-j ${processes}"
+    export J=2   
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -612,7 +604,6 @@ wrf () {
 
     if [[ ${WRF_CHEM} == 1 ]]; then
         printf "export WRF_CHEM=1\n" >> ${WRF_ENVIRONMENT}
-        printf "export WRF_EM_CORE=1\n" >> ${WRF_ENVIRONMENT}
         printf "export WRF_NMM_CORE=0\n" >> ${WRF_ENVIRONMENT}
     fi
 
@@ -626,6 +617,7 @@ wrf () {
     printf "export WRF_DIR=%s\n" "$WRF" >> ${WRF_ENVIRONMENT}
     printf "export WRFIO_NCD_LARGE_FILE_SUPPORT=%s\n" "$WRFIO_NCD_LARGE_FILE_SUPPORT" >> ${WRF_ENVIRONMENT}
     printf "export J=\"%s\"\n" "$J" >> ${WRF_ENVIRONMENT}
+    printf "export WRF_EM_CORE=1\n" >> ${WRF_ENVIRONMENT}
 
     cat << EOF
 
@@ -635,22 +627,18 @@ wrf () {
 
     source the generated WRF_ENVIRONMENT file: source ${PREFIX}/${PACKAGES}/wrf_environment.sh
     
-    load the compiler module matching the parameter block, e.g.
-    module load intel/19.1.0 
+    ./configure
 
-    load the MPI module matching the parameter block, e.g.
-    module load intel-mpi/2019.6
-
-    ./configure [-d without optimization]
+    select DMPAR - Intel (15) 
 
     edit configure.wrf, e.g. with
         DM_FC=mpiifort
         DM_CC=mpiicc
     
-    compile model with e.g. ./compile -j $processes <model name>
+    compile model with e.g. ./compile <model name>
         for WRF-chem: additionally issue ./compile emi_conv
 
-    issue clean before making changes to recompile or clean -a which also overwrites configure.wrf
+    issue ./clean before making changes to recompile or clean -a which also overwrites configure.wrf
 
     ################################################################################################
 
