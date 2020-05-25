@@ -17,7 +17,7 @@ scriptdoc
 ### begin required parameters ###
 
 initialize() {
-    export PREFIX=/home/mydir/wrfbuildtag       # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
+    export PREFIX=/binfl/lv71416/malexand2/508c    # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
     export CATEGORY='opt'
     export PACKAGES='pkg'
 
@@ -676,7 +676,7 @@ wps () {
     edit the resulting file configure.wps with: 
     DM_FC: mpiifort
     DM_CC: mpiicc
-    LDFAGS: -qoopenmp
+    LDFAGS: -qopenmp
 
     then enter the library and include paths from the generated wrf_environment.sh file 
     (see paramter section for location) 

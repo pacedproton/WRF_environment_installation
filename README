@@ -54,7 +54,7 @@ This script requires 2 passes to build WRF, 3 for WRF/WPS.
     edit the resulting file configure.wps with:
     DM_FC: mpiifort
     DM_CC: mpiicc
-    LDFAGS: -qoopenmp
+    LDFAGS: -qopenmp
 
     then edit the library and include paths from the generated wrf_environment.sh file
     (see paramter section and wrf_environment.sh for the respective locations)
