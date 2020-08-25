@@ -3,7 +3,16 @@ for WRF/WRF-Chem/WPS.
 
 Buildtime: All the necessary parameterization is to fill out the block marked for required parameters.
 
-Required environment:
+2 environments are supported: AMD-generic and Intel-vsc. 
+
+Use PLATFORM_ARCH=INTEL-vsc for Intel clusters with a module environment congruent with the modules in initialize(). 
+Here, the Intel compilers, Intel MPI, cmake and perl need to be loadable through the module facility.
+
+or
+
+PLATFORM=AMD-generic for all other AMD and Intel ones (default). 
+
+Tested environment INTEL-vsc:
     RHEL/CentOS Linux (tested 7.6)
     Intel Parellel Studio (tested 19.1.0)
     cmake (tested 3.15.1)
@@ -13,7 +22,17 @@ Required environment:
     yacc (tested 1.9)
     flex (tested 2.6.4)
 
-The Intel compilers, Intel MPI, cmake and perl need to be loadable through the module facility.
+Tested environment for AMD-generic:
+    RHEL/CentOS Linux (tested 7.8)
+    Intel Parellel Studio (tested 2020.1.102)
+    cmake (tested 3.17.3)
+    perl (tested 5.16)
+    automake (tested 1.13.4) 
+    gettext (tested 0.19.8.1)
+    yacc (tested 1.9)
+    flex (tested 2.6.4)
+
+
 This script requires 2 passes to build WRF, 3 for WRF/WPS. 
 
 
@@ -21,8 +40,9 @@ This script requires 2 passes to build WRF, 3 for WRF/WPS.
 
 (2) Change to the script directory and run it from a bash shell: bash ./worf.sh
 
-(3) If testing was enabled (test='test') then the total compile time for the environment 
-    dependencies on a 2020 high-end SMP is around an hour wallclock time; without testing about 20'/
+(3) If testing was enabled (test='test') and the optimization level via the parameter OPTI set to '-O3' then 
+    the build time for the environment with dependencies on a 2020 high-end SMP is around 2 hours wallclock time;
+    without testing and at OPTI to '-O0' about 10'.
 
 (4) Check if the dependencies have all been deployed to 
     <PREFIX><CATEGORY>
@@ -54,7 +74,7 @@ This script requires 2 passes to build WRF, 3 for WRF/WPS.
     edit the resulting file configure.wps with:
     DM_FC: mpiifort
     DM_CC: mpiicc
-    LDFAGS: -qoopenmp
+    LDFLAGS: -qopenmp
 
     then edit the library and include paths from the generated wrf_environment.sh file
     (see paramter section and wrf_environment.sh for the respective locations)
