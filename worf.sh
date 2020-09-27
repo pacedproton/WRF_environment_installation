@@ -18,8 +18,12 @@ scriptdoc
 
 initialize() {
     export PREFIX=/metstor_nfs                  # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
-    export CATEGORY='opt/sw'
-    export PACKAGES='pkg'
+    export CATEGORY='opt/sw/wrf/2709'
+    export PACKAGES='opt/sw/wrf/2709/pkg-src'
+
+    export PLATFORM_ARCH='AMD-generic'          # {AMD-generic, INTEL-vsc}
+
+    export PARALLELSTUDIO_ENVIONMENTSCRIPT='/metstor_nfs/opt/intel/parallel_studio_xe_2020.1.102/psxevars.sh'
 
     export PLATFORM_ARCH='AMD-generic'          # {AMD-generic, INTEL-vsc}
 
@@ -36,13 +40,13 @@ initialize() {
     environment_version[texinfo]='texinfo/6.5-gcc-9.1.0-jbo5m2y'
     environment_version[help2man]='help2man/1.47.8-intel-19.0.5.281-k3tb6t4'
 
-    WRF_ENVIRONMENT=${PREFIX}/${PACKAGES}/wrf_environment.sh  # location for generated wrf environment file
+    WRF_ENVIRONMENT=${PREFIX}/${CATEGORY}/wrf_environment.sh  # location for generated wrf environment file
 
     WRF_CHEM=1
     WRF_KPP=0
     WRFIO_NCD_LARGE_FILE_SUPPORT=1
 
-    export OPTI='-O0'
+    export OPTI='-O3'
     
     ### end required parameters ###
 
@@ -71,7 +75,7 @@ initialize() {
     src_packages_version[libpng]='refs/tags/v1.6.35'
     src_packages_version[jasper]='refs/tags/version-2.0.16'
     src_packages_version[wrf]='refs/tags/v4.0.3'
-    src_packages_version[hdf5]='refs/tags/hdf5-1_10_6'
+    src_packages_version[hdf5]='refs/tags/hdf5-1_12_0'
     src_packages_version[netcdf_c]='refs/tags/v4.7.3'
     src_packages_version[netcdf_f]='refs/tags/v4.5.2'
     src_packages_version[pnetcdf]='refs/tags/checkpoint.1.12.1'
@@ -148,10 +152,10 @@ buildclean () {
 
 set_platform_parms(){
     if [[ ${PLATFORM_ARCH} == 'AMD-generic' ]]; then
-	export CPU='-march=core-avx2 -heaps-array'
-	export MPI=${I_MPI_ROOT}/intel64
-
 	source ${PARALLELSTUDIO_ENVIONMENTSCRIPT}
+
+	export CPU='-march=core-avx2'
+	export MPI=${I_MPI_ROOT}/intel64
 
     elif [[ ${PLATFORM_ARCH} == 'INTEL-vsc' ]]; then
         for i_module in "${!environment_version[@]}"; do
@@ -596,7 +600,7 @@ generate_peroration () {
     printf "echo \"[info] Build date $(date)\"\n" >> ${WRF_ENVIRONMENT} 
     printf "echo \"[info] Compiler: %s, MPI: %s\"\n" ${environment_version[intel]} ${environment_version[intel-mpi]} >> ${WRF_ENVIRONMENT}
 
-    if [[ ${PLATFORM_ARCH} == 'AMD-generic' ]]; then
+    if [[ ${PLATFORM_ARCH} == 'INTEL-vsc' ]]; then
 	printf 'echo \"[modules] loading modules\"\n' >> ${WRF_ENVIRONMENT}
 
 	for i_module in "${!environment_version[@]}"; do
