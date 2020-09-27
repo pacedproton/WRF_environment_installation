@@ -25,6 +25,10 @@ initialize() {
 
     export PARALLELSTUDIO_ENVIONMENTSCRIPT='/metstor_nfs/opt/intel/parallel_studio_xe_2020.1.102/psxevars.sh'
 
+    export PLATFORM_ARCH='AMD-generic'          # {AMD-generic, INTEL-vsc}
+
+    export PARALLELSTUDIO_ENVIONMENTSCRIPT='/metstor_nfs/opt/intel/parallel_studio_xe_2020.1.102/psxevars.sh'
+
     declare -Ag environment_version             # tested versions, adapt to your environment
     environment_version[intel]='intel/19.1.0'   
     environment_version[intel-mpi]='intel-mpi/2019.6'
@@ -36,8 +40,7 @@ initialize() {
     environment_version[texinfo]='texinfo/6.5-gcc-9.1.0-jbo5m2y'
     environment_version[help2man]='help2man/1.47.8-intel-19.0.5.281-k3tb6t4'
 
-#    WRF_ENVIRONMENT=${PREFIX}/${PACKAGES}/wrf_environment.sh  # location for generated wrf environment file
-    WRF_ENVIRONMENT=/metstor_nfs/opt/sw/wrf/2709/wrf_environment.sh  # location for generated wrf environment file
+    WRF_ENVIRONMENT=${PREFIX}/${CATEGORY}/wrf_environment.sh  # location for generated wrf environment file
 
     WRF_CHEM=1
     WRF_KPP=0
