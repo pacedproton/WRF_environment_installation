@@ -17,11 +17,11 @@ scriptdoc
 ### begin required parameters ###
 
 initialize() {
-    export PREFIX=/gpfs/data/fs71449/malexand3/wrf                  # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
-    export CATEGORY='2312'
-    export PACKAGES='2312/pkg-src'
+    export PREFIX=/metstor_nfs/opt/sw/wrf                  # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
+    export CATEGORY='0501'
+    export PACKAGES='0501/pkg-src'
 
-    export PLATFORM_ARCH='INTEL-vsc'          # {AMD-generic, INTEL-vsc}
+    export PLATFORM_ARCH='AMD-generic'          # {AMD-generic, INTEL-vsc}
 
     export PARALLELSTUDIO_ENVIONMENTSCRIPT='/metstor_nfs/opt/intel/parallel_studio_xe_2020.1.102/psxevars.sh'
 
@@ -651,7 +651,7 @@ wrf () {
 
     cd to ${PREFIX}/${PACKAGES}/${this_package}
 
-    source the generated WRF_ENVIRONMENT file: source ${PREFIX}/${PACKAGES}/wrf_environment.sh
+    source the generated WRF_ENVIRONMENT file: source ${PREFIX}/${CATEGORY}/wrf_environment.sh
     
     ./configure
 
@@ -702,18 +702,18 @@ wps () {
     edit the resulting file configure.wps with: 
     DM_FC: mpiifort
     DM_CC: mpiicc
-    LDFAGS: -qoopenmp
+    LDFLAGS: -qopenmp
 
     then enter the library and include paths from the generated wrf_environment.sh file 
     (see paramter section for location) 
     
     COMPRESSION_LIBS=-L<jasperpath>/lib -L<zlibpath>/lib -L<libpngpath>/lib -ljasper -lpng -lz
-    COMPRESSION_INC=-I<jasperpath>/include -I<zlibpath>/include -I<libpngpath>/include
+    COMPRESSION_INC=-I<jasperpath>/include/jasper -I<zlibpath>/include -I<libpngpath>/include
     
     Example:
 
     COMPRESSION_LIBS=-L/gpfs/data/home/username/opt/jasper/lib64 -L/gpfs/data/data/home/usernameme/opt/zlib/lib -L/gpfs/data/data/home/username/opt/libpng/lib -ljasper -lpng -lz
-    COMPRESSION_INC=-I/gpfs/data/home/username/opt/jasper/include -L/gpfs/data/home/username/opt/zlib/lib -L/gpfs/data/home/username/opt/libpng/lib
+    COMPRESSION_INC=-I/gpfs/data/home/username/opt/jasper/include/jasper -L/gpfs/data/home/username/opt/zlib/lib -L/gpfs/data/home/username/opt/libpng/lib
 
     then run ./compile
     issue clean before making changes to recompile or clean -a which also overwrites configure.wps
