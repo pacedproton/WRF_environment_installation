@@ -80,12 +80,12 @@ This script requires 2 passes to build WRF, 3 for WRF/WPS.
     (see paramter section and wrf_environment.sh for the respective locations)
 
     COMPRESSION_LIBS=-L<jasperpath>/lib -L<zlibpath>/lib -L<libpngpath>/lib -ljasper -lpng -lz
-    COMPRESSION_INC=-I<jasperpath>/include -I<zlibpath>/include -I<libpngpath>/include
+    COMPRESSION_INC=-I<jasperpath>/include/jasper -I<zlibpath>/include -I<libpngpath>/include
 
     Example:
 
     COMPRESSION_LIBS=-L/gpfs/data/home/username/opt/jasper/lib64 -L/gpfs/data/data/home/usernameme/opt/zlib/lib -L/gpfs/data/data/home/username/opt/libpng/lib -ljasper -lpng -lz
-    COMPRESSION_INC=-I/gpfs/data/home/username/opt/jasper/include -L/gpfs/data/home/username/opt/zlib/lib -L/gpfs/data/home/username/opt/libpng/lib
+    COMPRESSION_INC=-I/gpfs/data/home/username/opt/jasper/include/jasper -L/gpfs/data/home/username/opt/zlib/lib -L/gpfs/data/home/username/opt/libpng/lib
 
     then run ./compile
    

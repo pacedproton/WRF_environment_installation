@@ -17,13 +17,9 @@ scriptdoc
 ### begin required parameters ###
 
 initialize() {
-    export PREFIX=/metstor_nfs                  # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
-    export CATEGORY='opt/sw/wrf/2709'
-    export PACKAGES='opt/sw/wrf/2709/pkg-src'
-
-    export PLATFORM_ARCH='AMD-generic'          # {AMD-generic, INTEL-vsc}
-
-    export PARALLELSTUDIO_ENVIONMENTSCRIPT='/metstor_nfs/opt/intel/parallel_studio_xe_2020.1.102/psxevars.sh'
+    export PREFIX=/metstor_nfs/opt/sw/wrf                  # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
+    export CATEGORY='0501'
+    export PACKAGES='0501/pkg-src'
 
     export PLATFORM_ARCH='AMD-generic'          # {AMD-generic, INTEL-vsc}
 
@@ -46,6 +42,7 @@ initialize() {
     WRF_KPP=0
     WRFIO_NCD_LARGE_FILE_SUPPORT=1
 
+    
     export OPTI='-O3'
     
     ### end required parameters ###
@@ -57,6 +54,7 @@ initialize() {
     declare -Ag src_packages
     src_packages[zlib]='https://github.com/madler/zlib.git'
     src_packages[curl]='https://github.com/curl/curl'
+
     src_packages[libpng]='https://github.com/glennrp/libpng.git'
     src_packages[hdf5]='https://github.com/HDFGroup/hdf5'
     src_packages[netcdf_c]='https://github.com/Unidata/netcdf-c.git'
@@ -164,7 +162,7 @@ set_platform_parms(){
         done
 
 	export MPI=$(( module show ${environment_version[intel-mpi]} 2>&1 ) | awk '$2 ~ /VSC_MPI_BASE/ {print $3}')
-	export CPU='-xHost -shared-intel -march=core-avx2'
+	export CPU='-xHost -shared-intel'
     fi
 
     if [[ $wps != 'wps' ]]; then
@@ -250,6 +248,11 @@ curl () {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
+    automake --version
+    module remove ${environment_version[automake]}
+
+
+    autoreconf --clean    
     autoreconf -if
 
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} 
@@ -482,8 +485,8 @@ jasper () {
 
     mkdir -p ${PREFIX}/${PACKAGES}/${this_package}/build
 
-    if [[ ${PLATFORM_ARCH} == 'Intel-vsc' ]]; then
-	cmake -G "Unix Makefiles" -H${PREFIX}/${PACKAGES}/${this_package} \
+    if [[ ${PLATFORM_ARCH} == 'INTEL-vsc' ]]; then
+    	cmake -G "Unix Makefiles" -H${PREFIX}/${PACKAGES}/${this_package} \
             -B${PREFIX}/${PACKAGES}/${this_package}/build \
             -DCMAKE_INSTALL_PREFIX=${PREFIX}/${CATEGORY}/${this_package} \
             -DJAS_ENABLE_OPENGL=false \
@@ -533,14 +536,15 @@ netcdf_cf() {
     printf "export NETCDF=%s\n" "$NETCDF_CF" >> ${WRF_ENVIRONMENT}
 }
 
-switch_autoconf() {
+#switch_autoconf() {
 #   newer automake 1.16.1 for flex/yacc fall back to 1.13.4 all others
-    if [[ ${PLATFORM_ARCH} == 'AMD-generic' ]]; then
-	module remove ${environment_version[automake]}
-    fi
-}
+#     if [[ ${PLATFORM_ARCH} == 'AMD-generic' ]]; then
+# 	module remove ${environment_version[automake]}
+#     fi
+# }
 
 flex() {
+
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
 
@@ -647,7 +651,7 @@ wrf () {
 
     cd to ${PREFIX}/${PACKAGES}/${this_package}
 
-    source the generated WRF_ENVIRONMENT file: source ${PREFIX}/${PACKAGES}/wrf_environment.sh
+    source the generated WRF_ENVIRONMENT file: source ${PREFIX}/${CATEGORY}/wrf_environment.sh
     
     ./configure
 
@@ -698,18 +702,18 @@ wps () {
     edit the resulting file configure.wps with: 
     DM_FC: mpiifort
     DM_CC: mpiicc
-    LDFAGS: -qoopenmp
+    LDFLAGS: -qopenmp
 
     then enter the library and include paths from the generated wrf_environment.sh file 
     (see paramter section for location) 
     
     COMPRESSION_LIBS=-L<jasperpath>/lib -L<zlibpath>/lib -L<libpngpath>/lib -ljasper -lpng -lz
-    COMPRESSION_INC=-I<jasperpath>/include -I<zlibpath>/include -I<libpngpath>/include
+    COMPRESSION_INC=-I<jasperpath>/include/jasper -I<zlibpath>/include -I<libpngpath>/include
     
     Example:
 
     COMPRESSION_LIBS=-L/gpfs/data/home/username/opt/jasper/lib64 -L/gpfs/data/data/home/usernameme/opt/zlib/lib -L/gpfs/data/data/home/username/opt/libpng/lib -ljasper -lpng -lz
-    COMPRESSION_INC=-I/gpfs/data/home/username/opt/jasper/include -L/gpfs/data/home/username/opt/zlib/lib -L/gpfs/data/home/username/opt/libpng/lib
+    COMPRESSION_INC=-I/gpfs/data/home/username/opt/jasper/include/jasper -L/gpfs/data/home/username/opt/zlib/lib -L/gpfs/data/home/username/opt/libpng/lib
 
     then run ./compile
     issue clean before making changes to recompile or clean -a which also overwrites configure.wps
