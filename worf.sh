@@ -17,21 +17,22 @@ scriptdoc
 ### begin required parameters ###
 
 initialize() {
-    export PREFIX=/metstor_nfs/opt/sw/wrf                  # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
-    export CATEGORY='0501'
-    export PACKAGES='0501/pkg-src'
+    export PREFIX=/metstor_nfs/opt/sw/wrf                    # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
+    export CATEGORY='1002'
 
-    export PLATFORM_ARCH='AMD-generic'          # {AMD-generic, INTEL-vsc}
+    export PLATFORM_ARCH='AMD-generic'                       # {AMD-generic, INTEL-vsc}
 
-    export PARALLELSTUDIO_ENVIONMENTSCRIPT='/metstor_nfs/opt/intel/parallel_studio_xe_2020.1.102/psxevars.sh'
+    # Intel oneapi / Parallel Studio via module system: use environment_version below, otherwise define setup script location below.
+    # export PARALLELSTUDIO_ENVIONMENTSCRIPT='/metstor_nfs/opt/intel/parallel_studio_xe_2020.1.102/psxevars.sh'
 
-    declare -Ag environment_version             # tested versions, adapt to your environment
-    environment_version[intel]='intel/19.1.0'   
-    environment_version[intel-mpi]='intel-mpi/2019.6'
+    declare -Ag environment_version                          # tested versions, adapt to your environment
+    environment_version[intel]='oneapi/2021.1'   
+    environment_version[intel-mpi]='oneapi/2021.1'           # enter separate oneapi Base and HPC Toolkits if not combined
     environment_version[cmake]='cmake/3.15.1-intel-19.0.5.281-zbb4n77'
     environment_version[perl5]='perl/5.26.2-gcc-9.1.0-npgo6f5'
     environment_version[gettext]='gettext/0.19.8.1-intel-19.0.5.281-47ar2rz'
-    environment_version[automake]='automake/1.16.1-intel-19.0.5.281-sclxqoe'
+    environment_version[automake_1_13_4]='automake/1.13.4'   # module system module names 
+    environment_version[automake_1_16_3]='automake/1.16.3'
     environment_version[libiconv]='libiconv/1.15-intel-19.0.5.281-a24zavx'
     environment_version[texinfo]='texinfo/6.5-gcc-9.1.0-jbo5m2y'
     environment_version[help2man]='help2man/1.47.8-intel-19.0.5.281-k3tb6t4'
@@ -41,12 +42,12 @@ initialize() {
     WRF_CHEM=1
     WRF_KPP=0
     WRFIO_NCD_LARGE_FILE_SUPPORT=1
+    
+    export OPTI='-O0'
 
-    
-    export OPTI='-O3'
-    
     ### end required parameters ###
 
+    export PACKAGES="${CATEGORY}/pkg-src"
 
     export check=''                             # possible values: 'check', empty string '' 
     export clean='clean'                        # 'clean', ''
@@ -72,7 +73,7 @@ initialize() {
     src_packages_version[curl]='refs/tags/curl-7_68_0'
     src_packages_version[libpng]='refs/tags/v1.6.35'
     src_packages_version[jasper]='refs/tags/version-2.0.16'
-    src_packages_version[wrf]='refs/tags/v4.0.3'
+    src_packages_version[wrf]='refs/tags/v4.2.2'
     src_packages_version[hdf5]='refs/tags/hdf5-1_12_0'
     src_packages_version[netcdf_c]='refs/tags/v4.7.3'
     src_packages_version[netcdf_f]='refs/tags/v4.5.2'
@@ -80,6 +81,27 @@ initialize() {
     src_packages_version[flex]='refs/tags/v2.6.4'
     src_packages_version[yacc]='refs/tags/v1.9'
 
+    if [[ $CMDARG == 'clean' ]]; then
+	read -r -p "move ${PREFIX}/${CATEGORY} to ${PREFIX}/${CATEGORY}.save and delete ${PREFIX}/${PACKAGES} (yes/no)? " keyinput
+        if [[ ${keyinput} =~ ^([nN][oO]|n|N)$ ]]; then
+	    exit 0 
+	elif [[ ${keyinput} =~ ^([yY][eE][sS]|[yY])$ ]] && [[ ! -z ${PREFIX} ]]; then
+	    local categorypath="${PREFIX}/${CATEGORY}"
+	    local categorypath_length="${#categorypath}"
+	    local scriptpath_length="${#BASH_SOURCE[0]}"
+            local scriptpath_minus_categorypath="${BASH_SOURCE[0]::$categorypath_length}"
+	    if [[ $categorypath == $scriptpath_minus_categorypath ]]; then
+		echo "script inside filesystem build tree; move it outside and retry"
+		exit 1
+            fi
+	    if [[ -d ${PREFIX}/${CATEGORY}.save ]]; then
+	        rm -rf ${PREFIX}/${CATEGORY}.save
+            fi
+	    mv -v ${PREFIX}/${CATEGORY} ${PREFIX}/${CATEGORY}.save
+	    rm -vrf ${PREFIX}/${CATEGORY}.save/pkg-src
+	    exit $?
+	fi
+    fi
 
     if [[ -f ${WRF_ENVIRONMENT} && $wps != 'wps' ]]; then
         truncate -s 0 ${WRF_ENVIRONMENT}
@@ -96,7 +118,7 @@ buildclean () {
     unset src_packages_version
     unset environment_version
 
-    PREFIX=''
+    PREFIX='#'
     CATEGORY=''
     PACKAGES=''
 
@@ -139,21 +161,30 @@ buildclean () {
     CPPFLAGS=''
     FFLAGS=''
     LDFLAGS=''
-    
-    if [[ ${clean} == 'clean' && ${BASH_ARGV[0]} == 'clean' ]]; then
-	read -r -p "are you sure you want to move the libraries/binaries dir ${PREFIX}/${CATEGORY} to ${PREFIX}/${CATEGORY}.save (yes/no)? " keyinput
-	if [[ ${keyinput} =~ ^([yY][eE][sS]|[yY])$  ]]; then
-            mv ${PREFIX}/${CATEGORY} ${PREFIX}/${CATEGORY}.save
-	fi
-    fi
+    PARALLELSTUDIO_ENVIONMENTSCRIPT=''
 }
 
 set_platform_parms(){
     if [[ ${PLATFORM_ARCH} == 'AMD-generic' ]]; then
-	source ${PARALLELSTUDIO_ENVIONMENTSCRIPT}
+	if [[ ! -z ${PARALLELSTUDIO_ENVIONMENTSCRIPT} ]]; then
+	    source ${PARALLELSTUDIO_ENVIONMENTSCRIPT}
+        else
+            module load ${environment_version[intel]}
+	fi
+	export CPU='-march=core-avx2 -qopt-report=0'
+	export MPI=${I_MPI_ROOT}
 
-	export CPU='-march=core-avx2'
-	export MPI=${I_MPI_ROOT}/intel64
+    export CC=icc
+    export CXX=icpc
+    export MPICC=mpiicc
+    export MPICXX=mpiicpc
+    export MPIF90=mpiifort
+    export MPIF77=mpiifort
+    export F77=ifort
+    export FC=mpiifort
+    export F90=ifort
+
+    export CFLAGS="${OPTI} ${CPU} -ip -no-prec-div -fPIC"
 
     elif [[ ${PLATFORM_ARCH} == 'INTEL-vsc' ]]; then
         for i_module in "${!environment_version[@]}"; do
@@ -163,20 +194,20 @@ set_platform_parms(){
 
 	export MPI=$(( module show ${environment_version[intel-mpi]} 2>&1 ) | awk '$2 ~ /VSC_MPI_BASE/ {print $3}')
 	export CPU='-xHost -shared-intel'
+        export CFLAGS="${OPTI} ${CPU} -ip -no-prec-div -fPIC"
     fi
 
     if [[ $wps != 'wps' ]]; then
 	export LD_LIBRARY_PATH_INITIAL=$LD_LIBRARY_PATH
     fi
 
+    printf "module load %s\n" "${environment_version[intel]}" >> ${WRF_ENVIRONMENT}
     printf "export LD_LIBRARY_PATH_INITIAL=%s\n" "$LD_LIBRARY_PATH_INITIAL" >> ${WRF_ENVIRONMENT}
     printf "export MPI=%s\n" "$MPI" >> ${WRF_ENVIRONMENT}
 } 
 
 git_lazy_clone() {
     local this_package=$1
-
-    echo $LD_LIBRARAY_PATH
 
     if [[ $this_package == '' ]]; then
         return 0
@@ -206,16 +237,30 @@ git_lazy_clone() {
 }
 
 line_printer() {
-    echo -e "\n\n\n[info] building $1"
+    if [[ $1 = 'wrf' ]]; then
+	echo "\n\n\n[info] cloning WRF"
+    else
+	echo -e "\n\n\n[info] building $1"
+    fi
 }
 
+cleanup_check() {
+   local this_package_path="${1}"
+   local ret_cleanup_check="not cleaned"
+   if [[ -f ${this_package_path}/Makefile ]]; then
+       make distclean
+       ret_cleanup_check="prior Makefile found, build directory distcleaned"
+       echo $ret_cleanup_check  
+       return 0 
+   fi
+   ret_cleanup_check="no Makefile artifact found/build directory not cleaned"
+   echo $ret_cleanup_check  
+   return 0
+}
 
 zlib () {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
-
-    export CC=icc
-    export CFLAGS="${OPTI} ${CPU} -ip"
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -223,14 +268,15 @@ zlib () {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
-    make distclean
-
+    module load ${environment_version[automake_1_13_4]}
+    cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} #remove -- static
-
     make install
     make $check 
 
     export ZLIB=${PREFIX}/${CATEGORY}/${this_package}
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${ZLIB}/lib
+
     printf "export ZLIB=%s\n" "$ZLIB" >> ${WRF_ENVIRONMENT}
 }
 
@@ -239,27 +285,23 @@ curl () {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
 
-    export CC=icc
-    export CFLAGS="${OPTI} ${CPU} -ip"
-
     cd ${PREFIX}/${PACKAGES}
 
     git_lazy_clone $this_package
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
+    
+    module purge automake
 
-    automake --version
-    module remove ${environment_version[automake]}
-
-
-    autoreconf --clean    
+    cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     autoreconf -if
-
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} 
-    make install
+    make install -j $processes
     make $check -j $processes
 
     export CURL=${PREFIX}/${CATEGORY}/${this_package}
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CURL}/lib
+
     printf "export CURL=%s\n" "$CURL" >> ${WRF_ENVIRONMENT}
 }
 
@@ -268,36 +310,34 @@ hdf5 () {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
 
-
-    export CC=mpiicc
-    export CXX=mpiicpc
-    export FC=mpiifort
-    export CFLAGS="${OPTI} ${CPU} -ip"
     export CXXFLAGS="${OPTI} ${CPU} -ip"
-    export FCFLAGS="${OPTI} ${CPU} -ip"
 
     cd ${PREFIX}/${PACKAGES}
 
     git_lazy_clone $this_package
-
+    
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
+    export CC=mpiicc
+    export CXX=mpiicpc
+
+    module load ${environment_version[automake_1_16_3]}    
+    cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     autoreconf -if
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} \
         --enable-fortran \
         --enable-parallel \
-        --with-zlib=${ZLIB} \
         --with-pic \
         --enable-hl \
         --enable-build-mode=production \
-        --with-zlib=${PREFIX}/${CATEGORY}/${ZLIB}/lib
+        --with-zlib=${ZLIB}/lib
 
     make -j -l6
     make install
     make $check 
 
     export HDF5=${PREFIX}/${CATEGORY}/${this_package}
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_INITIAL:${ZLIB}/lib:${CURL}/lib:${HDF5}/lib
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_INITIAL:${HDF5}/lib
 
     printf "export HDF5=%s\n" "$HDF5" >> ${WRF_ENVIRONMENT}
     printf "export PHDF5=%s\n" "$HDF5" >> ${WRF_ENVIRONMENT}
@@ -310,18 +350,10 @@ netcdf_c () {
 
     export CC=mpiicc
     export CXX=mpiicpc
-    export CPP='icc -E'
-    export CXXCPP='icpc -E'
-    export F77=mpiifort
-    export FC=mpiifort
-    export F90=mpiifort
 
-    export CFLAGS="${OPTI} -ip -no-prec-div ${CPU} -fPIC"
     export CXXFLAGS="${OPTI} -ip -no-prec-div ${CPU} -fPIC"
     export FFLAGS="${OPTI} -ip -no-prec-div ${CPU} -fPIC"
-
     export LDFLAGS="-L${HDF5}/lib -L${ZLIB}/lib"
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_INITIAL:${HDF5}/lib:${ZLIB}/lib:${CURL}/lib
     export CPPFLAGS="-I${HDF5}/include -I${ZLIB}/include"
 
     cd ${PREFIX}/${PACKAGES}
@@ -330,6 +362,8 @@ netcdf_c () {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
+    module load ${environment_version[automake_1_16_3]}    
+    cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     autoreconf -i -if
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} \
         --disable-dap \
@@ -340,6 +374,8 @@ netcdf_c () {
     make $check
 
     export NETCDF_C=${PREFIX}/${CATEGORY}/${this_package}
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${NETCDF_C}/lib
+
     printf "export NETCDF_C=%s\n" "$NETCDF_C" >> ${WRF_ENVIRONMENT}
 }
 
@@ -348,20 +384,9 @@ netcdf_f () {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
 
-    export CC=mpiicc
-    export CXX=mpiicpc
-    export CPP='icc -E'
-    export CXXCPP='icpc -E'
-    export F77=mpiifort
-    export FC=mpiifort
-    export F90=mpiifort
-
-    export CFLAGS="${OPTI} ${CPU} -ip -no-prec-div -fPIC"
     export CXXFLAGS="${OPTI} ${CPU} -ip -no-prec-div -fPIC"
     export FFLAGS="${OPTI} ${CPU} -ip -no-prec-div -fPIC" 
-
     export LDFLAGS="-L${HDF5}/lib -L${ZLIB}/lib -L${NETCDF_C}/lib -L${CURL}/lib"
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_INITIAL:${HDF5}/lib:${ZLIB}/lib:${NETCDF_C}/lib:${CURL}/lib
     export CPPFLAGS="-I${HDF5}/include -I${ZLIB}/include -I${NETCDF_C}/include -I${CURL}/include"
 
     local LIBS='-lnetcdf -lhdf5_hl -lhdf5 -lz -lcurl'
@@ -372,17 +397,20 @@ netcdf_f () {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
+    module load ${environment_version[automake_1_16_3]}    
+    cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     autoreconf -i -if
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} \
         --disable-shared \
         --enable-parallel-tests \
         --enable-large-file-tests 
-    make clean
-    make
+    make $processes
     make $check 
     make install
 
     export NETCDF_F=${PREFIX}/${CATEGORY}/${this_package}
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${NETCDF_F}/lib
+
     printf "export NETCDF_F=%s\n" "$NETCDF_F" >> ${WRF_ENVIRONMENT}
 } 
 
@@ -391,23 +419,11 @@ pnetcdf () {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
 
-    export CC=icc
-    export CXX=icpc
-    export MPICC=mpiicc
-    export MPICXX=mpiicpc
-    export MPIF90=mpiifort
-    export MPIF77=mpiifort
-    export CFLAGS="${OPTI} ${CPU} -ip -no-prec-div"
     export CXXFLAGS="${OPTI} ${CPU} -ip -no-prec-div"
-    export F77=ifort
-    export FC=ifort
-    export F90=iifort
     export FFLAGS="${OPTI} ${CPU} -ip -no-prec-div"
-    export CPP='icc -E'
-    export CXXCPP='icpc -E'
+
     export CPPFLAGS="-I${HDF5}/include -I${ZLIB}/include"
     export LDFLAGS="-L${HDF5}/lib -L${ZLIB}/lib"
-    export LD_LIBRARY_PATH=${HDF5}/lib:${ZLIB}/lib:${LD_LIBRARY_PATH_INITIAL}
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -415,6 +431,11 @@ pnetcdf () {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
+    export CC=icc
+    export CXX=icpc
+    
+    module purge
+    cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     autoreconf -if
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} \
         --with-mpi=$MPI \
@@ -433,6 +454,8 @@ pnetcdf () {
     make install
 
     export PNETCDF=${PREFIX}/${CATEGORY}/${this_package}
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PNETCDF}/lib
+
     printf "export PNETCDF=%s\n" "$PNETCDF" >> ${WRF_ENVIRONMENT}
 }
 
@@ -441,14 +464,11 @@ libpng () {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
 
-    export CC=icc
-    export CFLAGS="${OPTI} ${CPU} -ip"
     export CXXFLAGS="${OPTI} ${CPU} -ip -no-prec-div -fPIC"
     export CPPFLAGS="-I${ZLIB}/include"
     export ZLIBLIB=${ZLIB}/lib
     export ZLIBINC=${ZLIB}/include
     export LDFLAGS="-L${ZLIB}/lib"
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_INITIAL:${ZLIB}/lib
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -456,6 +476,8 @@ libpng () {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
+    module load ${environment_version[automake_1_16_3]}    
+    cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     autoreconf -if
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} \
         --enable-hardware-optimizations \
@@ -465,6 +487,8 @@ libpng () {
     make install
 
     export LIBPNG=${PREFIX}/${CATEGORY}/${this_package}
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${LIBPNG}/lib
+
     printf "export LIBPNG=%s\n" "$LIBPNG" >> ${WRF_ENVIRONMENT}
 }
 
@@ -478,10 +502,6 @@ jasper () {
     git_lazy_clone $this_package
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
-
-    export CC=icc
-    export CXX=icpc
-    export F77=ifort
 
     mkdir -p ${PREFIX}/${PACKAGES}/${this_package}/build
 
@@ -514,6 +534,8 @@ jasper () {
     make install
 
     export JASPER=${PREFIX}/${CATEGORY}/${this_package}
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${JASPER}/lib
+
     printf "export JASPER=%s\n" "$JASPER" >> ${WRF_ENVIRONMENT}
     printf "export JASPERINC=%s\n" "$JASPER/include/jasper" >> ${WRF_ENVIRONMENT}
     printf "export JASPERLIB=%s\n" "$JASPER/lib" >> ${WRF_ENVIRONMENT}
@@ -536,20 +558,11 @@ netcdf_cf() {
     printf "export NETCDF=%s\n" "$NETCDF_CF" >> ${WRF_ENVIRONMENT}
 }
 
-#switch_autoconf() {
-#   newer automake 1.16.1 for flex/yacc fall back to 1.13.4 all others
-#     if [[ ${PLATFORM_ARCH} == 'AMD-generic' ]]; then
-# 	module remove ${environment_version[automake]}
-#     fi
-# }
 
 flex() {
 
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
-
-    export CC=icc
-    export CFLAGS="${OPTI} ${CPU}-ip"
 
     cd ${PREFIX}/${PACKAGES}
 
@@ -557,14 +570,18 @@ flex() {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
+    module load ${environment_version[automake_1_13_4]}    
+    cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     ./autogen.sh
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} 
-    
-    make 
+
+    make -j $processes
     make install
 
     export FLEX=${PREFIX}/${CATEGORY}/${this_package}
     export FLEX_LIB_DIR=${PREFIX}/${CATEGORY}/${this_package}/lib
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${FLEX}/lib
+
     printf "export FLEX=%s/bin/flex\n" "$FLEX" >> ${WRF_ENVIRONMENT}
     printf "export FLEX_LIB_DIR=%s\n" "$FLEX_LIB_DIR" >> ${WRF_ENVIRONMENT}
 }
@@ -574,21 +591,21 @@ yacc() {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
 
-    export CC=icc
-    export CFLAGS="${OPTI} ${CPU} -ip"
-
     cd ${PREFIX}/${PACKAGES}
 
     git_lazy_clone $this_package
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
-    ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} \
-
+    module load ${environment_version[automake_1_13_4]}    
+    cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
+    ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} 
     make 
     make install
 
     export YACC="${PREFIX}/${CATEGORY}/${this_package}"
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${YACC}/lib
+
     printf "export \"YACC=%s/bin/yacc %s\"\n" "$YACC" '-d' >> ${WRF_ENVIRONMENT}
 }
 
@@ -677,19 +694,6 @@ wps () {
     local this_package=${FUNCNAME[0]}
     line_printer ${FUNCNAME[0]}
 
-    export CC=mpiicc
-    export CXX=mpiicpc
-    export CPP='icc -E'
-    export CXXCPP='icpc -E'
-    export F77=mpiifort
-    export FC=mpiifort
-    export F90=mpiifort
-
-    export CFLAGS="${OPTI} ${CPU} -ip -no-prec-div -fPIC"
-    export CXXFLAGS="${OPTI} ${CPU} -ip -no-prec-div -fPIC -fp-model precise"
-    export FFLAGS="${OPTI} ${CPU} -ip -no-prec-div -fPIC -fp-model precise"
-    export LDFLAGS='-qopenmp'
-
     cd ${PREFIX}/${PACKAGES}
 
     git_lazy_clone $this_package
@@ -725,12 +729,11 @@ EOF
 
 
 main () {
-    buildclean
+    buildclean 
     initialize
     set_platform_parms
     flex
     yacc
-    switch_autoconf
     zlib
     curl
     hdf5
@@ -746,7 +749,11 @@ main () {
 }
 
 
-if [[ "$1" == 'wps' ]]; then
+if [[ $1 == ${BASH_ARGV[0]} ]]; then
+   export CMDARG=$1
+fi 
+
+if [[ $CMDARG == 'wps' ]]; then
     export wps='wps'
     initialize
     wps
