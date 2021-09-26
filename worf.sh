@@ -18,7 +18,7 @@ scriptdoc
 
 initialize() {
     export PREFIX=/metstor_nfs/opt/sw/wrf                    # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
-    export CATEGORY='2512_oneapi2021.3'
+    export CATEGORY='2609_imkat_oneapi2021.3'
 
     export PLATFORM_ARCH='AMD-generic'                       # {AMD-generic, INTEL-vsc}
 
@@ -74,9 +74,9 @@ initialize() {
     src_packages_version[libpng]='refs/tags/v1.6.35'
     src_packages_version[jasper]='refs/tags/version-2.0.16'
     src_packages_version[wrf]='refs/tags/v4.2.2'
-    src_packages_version[hdf5]='refs/tags/hdf5-1_12_0'
-    src_packages_version[netcdf_c]='refs/tags/v4.7.3'
-    src_packages_version[netcdf_f]='refs/tags/v4.5.2'
+    src_packages_version[hdf5]='refs/tags/hdf5-1_10_7'
+    src_packages_version[netcdf_c]='refs/tags/v4.8.0'
+    src_packages_version[netcdf_f]='refs/tags/v4.5.3'
     src_packages_version[pnetcdf]='refs/tags/checkpoint.1.12.1'
     src_packages_version[flex]='refs/tags/v2.6.4'
     src_packages_version[yacc]='refs/tags/v1.9'
@@ -369,6 +369,7 @@ netcdf_c () {
         --disable-dap \
         --enable-parallel-tests \
         --enable-benchmarks
+        --enable-large-file-tests
     make -j $processes
     make install
     make $check
@@ -403,7 +404,8 @@ netcdf_f () {
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} \
         --disable-shared \
         --enable-parallel-tests \
-        --enable-large-file-tests 
+        --enable-large-file-tests
+        --enable-large-file
     make $processes
     make $check 
     make install
