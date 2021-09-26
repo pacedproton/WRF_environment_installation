@@ -18,7 +18,7 @@ scriptdoc
 
 initialize() {
     export PREFIX=/metstor_nfs/opt/sw/wrf                    # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
-    export CATEGORY='1002'
+    export CATEGORY='2512_oneapi2021.3'
 
     export PLATFORM_ARCH='AMD-generic'                       # {AMD-generic, INTEL-vsc}
 
@@ -26,8 +26,8 @@ initialize() {
     # export PARALLELSTUDIO_ENVIONMENTSCRIPT='/metstor_nfs/opt/intel/parallel_studio_xe_2020.1.102/psxevars.sh'
 
     declare -Ag environment_version                          # tested versions, adapt to your environment
-    environment_version[intel]='oneapi/2021.1'   
-    environment_version[intel-mpi]='oneapi/2021.1'           # enter separate oneapi Base and HPC Toolkits if not combined
+    environment_version[intel]='oneapi/2021.3'   
+    environment_version[intel-mpi]='oneapi/2021.3'           # enter separate oneapi Base and HPC Toolkits if not combined
     environment_version[cmake]='cmake/3.15.1-intel-19.0.5.281-zbb4n77'
     environment_version[perl5]='perl/5.26.2-gcc-9.1.0-npgo6f5'
     environment_version[gettext]='gettext/0.19.8.1-intel-19.0.5.281-47ar2rz'
@@ -268,7 +268,7 @@ zlib () {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
-    module load ${environment_version[automake_1_13_4]}
+    module load ${environment_version[automake_1_16_3]}
     cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} #remove -- static
     make install
@@ -397,7 +397,7 @@ netcdf_f () {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
-    module load ${environment_version[automake_1_16_3]}    
+
     cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     autoreconf -i -if
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} \
@@ -570,7 +570,8 @@ flex() {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
-    module load ${environment_version[automake_1_13_4]}    
+    module purge automake
+    module load ${environment_version[automake_1_16_3]}
     cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     ./autogen.sh
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} 
