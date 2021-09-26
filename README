@@ -23,11 +23,11 @@ Tested environment INTEL-vsc:
     flex (tested 2.6.4)
 
 Tested environment for AMD-generic:
-    RHEL/CentOS Linux (tested 7.8)
-    Intel Parellel Studio (tested 2020.1.102)
+    RHEL/CentOS Linux (tested 7.0)
+    Intel oneAPI 2021.1
     cmake (tested 3.17.3)
     perl (tested 5.16)
-    automake (tested 1.13.4) 
+    automake (tested 1.13.4 and 1.16.3: both needed) 
     gettext (tested 0.19.8.1)
     yacc (tested 1.9)
     flex (tested 2.6.4)
