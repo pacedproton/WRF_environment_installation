@@ -7,7 +7,7 @@ All the necessary parameterization is to fill out the block marked for
 required parameters and adapt the respective module environment_version names/versions. 
 
 Environment main elements: RHEL/CentOS Linux, 
-Intel Parellel Studio (see README for tested versions on both) 
+Intel OneAPI/Parallel Studio (see README for tested versions on both) 
 
 See the README file for step-by-step instructions. 
 
@@ -17,25 +17,29 @@ scriptdoc
 ### begin required parameters ###
 
 initialize() {
-    export PREFIX=/metstor_nfs/opt/sw/wrf                    # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
-    export CATEGORY='2512_oneapi2021.3'
+    export PREFIX=/binfs/lv71449/malexand3/wrf                    # format: <PREFIX>/{<CATEGORY>, <PACKAGES>}
+    export CATEGORY='2111'
 
-    export PLATFORM_ARCH='AMD-generic'                       # {AMD-generic, INTEL-vsc}
+    export PLATFORM_ARCH='Intel-vsc'                       # {AMD-generic, INTEL-vsc}
 
     # Intel oneapi / Parallel Studio via module system: use environment_version below, otherwise define setup script location below.
     # export PARALLELSTUDIO_ENVIONMENTSCRIPT='/metstor_nfs/opt/intel/parallel_studio_xe_2020.1.102/psxevars.sh'
 
     declare -Ag environment_version                          # tested versions, adapt to your environment
-    environment_version[intel]='oneapi/2021.3'   
-    environment_version[intel-mpi]='oneapi/2021.3'           # enter separate oneapi Base and HPC Toolkits if not combined
+    environment_version[intel]='compiler/compiler'   
+    environment_version[intel-mpi]='mpi/2021.3.0'           # enter separate oneapi Base and HPC Toolkits if not combined
     environment_version[cmake]='cmake/3.15.1-intel-19.0.5.281-zbb4n77'
     environment_version[perl5]='perl/5.26.2-gcc-9.1.0-npgo6f5'
     environment_version[gettext]='gettext/0.19.8.1-intel-19.0.5.281-47ar2rz'
-    environment_version[automake_1_13_4]='automake/1.13.4'   # module system module names 
-    environment_version[automake_1_16_3]='automake/1.16.3'
     environment_version[libiconv]='libiconv/1.15-intel-19.0.5.281-a24zavx'
     environment_version[texinfo]='texinfo/6.5-gcc-9.1.0-jbo5m2y'
     environment_version[help2man]='help2man/1.47.8-intel-19.0.5.281-k3tb6t4'
+
+    declare -Ag environment_alternate
+    environment_alternate[automake_1_13_4]='automake/1.13.4'   
+    environment_alternate[automake_1_13_4_vsc4]=''   
+    environment_alternate[automake_1_16_1]='automake/1.16.1-intel-19.1.1.217-dapdape' 
+    environment_alternate[automake_1_16_3]='automake/1.16.3' 
 
     WRF_ENVIRONMENT=${PREFIX}/${CATEGORY}/wrf_environment.sh  # location for generated wrf environment file
 
@@ -165,6 +169,7 @@ buildclean () {
 }
 
 set_platform_parms(){
+    echo $PLATFORM_ARCH
     if [[ ${PLATFORM_ARCH} == 'AMD-generic' ]]; then
 	if [[ ! -z ${PARALLELSTUDIO_ENVIONMENTSCRIPT} ]]; then
 	    source ${PARALLELSTUDIO_ENVIONMENTSCRIPT}
@@ -173,6 +178,16 @@ set_platform_parms(){
 	fi
 	export CPU='-march=core-avx2 -qopt-report=0'
 	export MPI=${I_MPI_ROOT}
+
+    elif [[ ${PLATFORM_ARCH} == 'Intel-vsc' ]]; then
+        for i_module in "${!environment_version[@]}"; do
+            echo ${environment_version[$i_module]}
+            module load ${environment_version[$i_module]}
+        done
+
+	export MPI=$(( module show ${environment_version[intel-mpi]} 2>&1 ) | awk '$2 ~ /I_MPI_ROOT/ {print $3}')
+	export CPU='-xHost -shared-intel'
+    fi
 
     export CC=icc
     export CXX=icpc
@@ -186,16 +201,8 @@ set_platform_parms(){
 
     export CFLAGS="${OPTI} ${CPU} -ip -no-prec-div -fPIC"
 
-    elif [[ ${PLATFORM_ARCH} == 'INTEL-vsc' ]]; then
-        for i_module in "${!environment_version[@]}"; do
-            echo ${environment_version[$i_module]}
-            module load ${environment_version[$i_module]}
-        done
 
-	export MPI=$(( module show ${environment_version[intel-mpi]} 2>&1 ) | awk '$2 ~ /VSC_MPI_BASE/ {print $3}')
-	export CPU='-xHost -shared-intel'
-        export CFLAGS="${OPTI} ${CPU} -ip -no-prec-div -fPIC"
-    fi
+
 
     if [[ $wps != 'wps' ]]; then
 	export LD_LIBRARY_PATH_INITIAL=$LD_LIBRARY_PATH
@@ -268,7 +275,7 @@ zlib () {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
-    module load ${environment_version[automake_1_16_3]}
+#    module load ${environment_version[automake_1_16_3]}
     cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} #remove -- static
     make install
@@ -291,11 +298,9 @@ curl () {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
     
-    module purge automake
-
     cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
-    autoreconf -if
-    ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} 
+    autoreconf -ivf
+    ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} --with-openssl 
     make install -j $processes
     make $check -j $processes
 
@@ -321,7 +326,7 @@ hdf5 () {
     export CC=mpiicc
     export CXX=mpiicpc
 
-    module load ${environment_version[automake_1_16_3]}    
+    module load ${environment_alternate[automake_1_16_3]}    
     cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     autoreconf -if
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} \
@@ -476,6 +481,16 @@ libpng () {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
+    case $PLATFORM_ARCH in
+        Intel-vsc) 
+            echo libpng intel
+            ;;
+        AMD-generic)
+            echo libpng amd
+            ;;
+    esac 
+
+
     module load ${environment_version[automake_1_16_3]}    
     cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     autoreconf -if
@@ -505,7 +520,7 @@ jasper () {
 
     mkdir -p ${PREFIX}/${PACKAGES}/${this_package}/build
 
-    if [[ ${PLATFORM_ARCH} == 'INTEL-vsc' ]]; then
+    if [[ ${PLATFORM_ARCH} == 'Intel-vsc' ]]; then
     	cmake -G "Unix Makefiles" -H${PREFIX}/${PACKAGES}/${this_package} \
             -B${PREFIX}/${PACKAGES}/${this_package}/build \
             -DCMAKE_INSTALL_PREFIX=${PREFIX}/${CATEGORY}/${this_package} \
@@ -513,7 +528,7 @@ jasper () {
             -DJAS_ENABLE_SHARED=true \
             -DJAS_ENABLE_LIBJPEG=true \
             -DCMAKE_BUILD_TYPE=Release   
-    else
+    elif [[${PLATFORM_ARCH} == 'AMD-generic' ]]; then
 	cmake3 -G "Unix Makefiles" -H${PREFIX}/${PACKAGES}/${this_package} \
             -B${PREFIX}/${PACKAGES}/${this_package}/build \
             -DCMAKE_INSTALL_PREFIX=${PREFIX}/${CATEGORY}/${this_package} \
@@ -570,8 +585,13 @@ flex() {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
-    module purge automake
-    module load ${environment_version[automake_1_16_3]}
+    if [[ ${PLATFORM_ARCH} == 'AMD-generic' ]]; then    
+        module load ${environment_alternate[automake_1_16_3]}
+    elif [[ ${PLATFORM_ARCH} == 'Intel-vsc' ]]; then
+        module load ${environment_alternate[automake_1_16_1]}
+        module load ${environment_version[gettext]}
+    fi
+    
     cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     ./autogen.sh
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} 
@@ -598,7 +618,7 @@ yacc() {
 
     cd ${PREFIX}/${PACKAGES}/${this_package}
 
-    module load ${environment_version[automake_1_13_4]}    
+#    module load ${environment_version[automake_1_13_4]}    
     cleanup_check ${PREFIX}/${PACKAGES}/${this_package}
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} 
     make 
@@ -733,16 +753,18 @@ main () {
     buildclean 
     initialize
     set_platform_parms
+    curl
+    libpng
     flex
     yacc
     zlib
-    curl
+#    curl
     hdf5
     netcdf_c
     netcdf_f
     netcdf_cf
     pnetcdf
-    libpng
+#    libpng
     jasper
     persist_ld_library_path
     generate_peroration
