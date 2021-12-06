@@ -373,7 +373,9 @@ netcdf_c () {
     ./configure --prefix=${PREFIX}/${CATEGORY}/${this_package} \
         --disable-dap \
         --enable-parallel-tests \
-        --enable-benchmarks
+        --enable-benchmarks \
+        --enable-netcdf-4
+
     make -j $processes
     make install
     make $check
@@ -521,6 +523,10 @@ jasper () {
     mkdir -p ${PREFIX}/${PACKAGES}/${this_package}/build
 
     if [[ ${PLATFORM_ARCH} == 'Intel-vsc' ]]; then
+        echo debug
+        module list
+        cmake --version
+
     	cmake -G "Unix Makefiles" -H${PREFIX}/${PACKAGES}/${this_package} \
             -B${PREFIX}/${PACKAGES}/${this_package}/build \
             -DCMAKE_INSTALL_PREFIX=${PREFIX}/${CATEGORY}/${this_package} \
